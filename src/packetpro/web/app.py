@@ -149,7 +149,8 @@ def create_app(config: AppConfig | None = None) -> FastAPI:
                     "job_id": item.document.job_id,
                     "original_name": item.document.original_name,
                     "page_number": item.document.page_number,
-                    "snippet": item.snippet,
+                    "ocr_text": item.document.ocr_text,
+                    "highlighted_text": item.snippet,
                     "processed_at": item.document.processed_at,
                     "image_url": f"/images/{item.document.id}",
                 }

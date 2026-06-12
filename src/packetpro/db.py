@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import html
 import re
 import sqlite3
 from dataclasses import dataclass
@@ -154,23 +155,14 @@ def _fts_query(query: str) -> str:
     return " ".join(f'"{term}"' for term in terms)
 
 
-def _make_snippet(text: str, query: str, radius: int = 80) -> str:
+def _highlight_full_text(text: str, query: str) -> str:
     if not text:
         return ""
-    lowered = text.lower()
+    highlighted = html.escape(text)
     for term in re.findall(r"[\w]+", query, flags=re.UNICODE):
-        idx = lowered.find(term.lower())
-        if idx >= 0:
-            start = max(0, idx - radius)
-            end = min(len(text), idx + len(term) + radius)
-            snippet = text[start:end]
-            if start > 0:
-                snippet = "..." + snippet
-            if end < len(text):
-                snippet = snippet + "..."
-            pattern = re.compile(re.escape(term), re.IGNORECASE)
-            return pattern.sub(lambda m: f"<mark>{m.group(0)}</mark>", snippet)
-    return text[: radius * 2] + ("..." if len(text) > radius * 2 else "")
+        pattern = re.compile(re.escape(term), re.IGNORECASE)
+        highlighted = pattern.sub(lambda m: f"<mark>{m.group(0)}</mark>", highlighted)
+    return highlighted
 
 
 def search_documents(db_path: Path, query: str, limit: int = 50) -> list[SearchResult]:
@@ -193,5 +185,7 @@ def search_documents(db_path: Path, query: str, limit: int = 50) -> list[SearchR
     results: list[SearchResult] = []
     for row in rows:
         doc = Document(**dict(row))
-        results.append(SearchResult(document=doc, snippet=_make_snippet(doc.ocr_text, query)))
+        results.append(
+            SearchResult(document=doc, snippet=_highlight_full_text(doc.ocr_text, query))
+        )
     return results
