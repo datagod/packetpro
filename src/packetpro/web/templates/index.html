@@ -111,6 +111,69 @@
       color: #b9d9ff;
     }
     .banner a { color: var(--accent); }
+    .stats-panel {
+      margin-bottom: 1.5rem;
+      padding: 1rem;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: rgba(26, 35, 50, 0.75);
+    }
+    .stats-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.75rem;
+    }
+    .stats-head h2 {
+      margin: 0;
+      font-size: 1.1rem;
+    }
+    .live-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--accent);
+      display: inline-block;
+      margin-right: 0.4rem;
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.35; }
+    }
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 0.75rem;
+      margin-bottom: 0.75rem;
+    }
+    .stat-card {
+      padding: 0.75rem;
+      border-radius: 8px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+    }
+    .stat-label { color: var(--muted); font-size: 0.82rem; }
+    .stat-value { font-size: 1.45rem; font-weight: 700; margin-top: 0.15rem; }
+    .stat-sub { color: var(--muted); font-size: 0.78rem; margin-top: 0.15rem; }
+    .worker-row, .gpu-row, .proc-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-top: 0.5rem;
+    }
+    .chip {
+      padding: 0.35rem 0.65rem;
+      border-radius: 999px;
+      font-size: 0.82rem;
+      border: 1px solid var(--border);
+      background: rgba(15, 20, 25, 0.55);
+    }
+    .chip.ok { border-color: #3d8f67; color: #9dffc8; }
+    .chip.busy { border-color: #b38c2a; color: #ffe08a; }
+    .chip.off { border-color: #7a3b3b; color: #ffb0b0; }
+    .chip.gpu { border-color: #3d689f; color: #b9d9ff; }
+    .stats-error { color: #ffb0b0; font-size: 0.9rem; margin-top: 0.5rem; }
     @media (max-width: 700px) {
       .result { grid-template-columns: 1fr; }
       .thumb { max-height: 220px; }
@@ -135,6 +198,41 @@
         <a href="/settings">Open Settings</a> to choose where inbox, archive, and database files live.
       </div>
     {% endif %}
+
+    <section class="stats-panel" id="stats-panel">
+      <div class="stats-head">
+        <h2><span class="live-dot"></span>Live pipeline stats</h2>
+        <span class="stat-sub" id="stats-updated">Updating...</span>
+      </div>
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-label">Inbox</div>
+          <div class="stat-value" id="stat-inbox">-</div>
+          <div class="stat-sub">waiting files</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">OCR queue</div>
+          <div class="stat-value" id="stat-queue">-</div>
+          <div class="stat-sub">pending jobs</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Processed</div>
+          <div class="stat-value" id="stat-rate-1m">-</div>
+          <div class="stat-sub">items / min (last 1m)</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Processed</div>
+          <div class="stat-value" id="stat-rate-5m">-</div>
+          <div class="stat-sub">items / min (last 5m)</div>
+        </div>
+      </div>
+      <div class="stat-label">Workers</div>
+      <div class="worker-row" id="worker-chips"></div>
+      <div class="stat-label" style="margin-top:0.65rem">GPU</div>
+      <div class="gpu-row" id="gpu-chips"></div>
+      <div class="proc-row" id="proc-chips"></div>
+      <div class="stats-error" id="stats-error" hidden></div>
+    </section>
 
     <form method="get" action="/">
       <input type="search" name="q" value="{{ query }}" placeholder="Search filenames and extracted text..." autofocus>
@@ -168,5 +266,76 @@
       <div class="empty">Enter a search term to find archived documents.</div>
     {% endif %}
   </div>
+  <script>
+    function workerChip(name, data) {
+      const alive = data && data.alive;
+      const state = (data && data.state) || "offline";
+      const cls = !alive ? "off" : (state === "processing" ? "busy" : "ok");
+      let text = `${name}: ${alive ? state : "offline"}`;
+      if (alive && data.file) text += ` (${data.file})`;
+      return `<span class="chip ${cls}">${text}</span>`;
+    }
+
+    function renderStats(data) {
+      const err = document.getElementById("stats-error");
+      if (!data.configured) {
+        document.getElementById("stat-inbox").textContent = "-";
+        document.getElementById("stat-queue").textContent = "-";
+        document.getElementById("stat-rate-1m").textContent = "-";
+        document.getElementById("stat-rate-5m").textContent = "-";
+        document.getElementById("worker-chips").innerHTML =
+          '<span class="chip off">configure paths in settings</span>';
+      } else {
+        document.getElementById("stat-inbox").textContent = data.queues.inbox;
+        document.getElementById("stat-queue").textContent = data.queues.transformed_pending;
+        document.getElementById("stat-rate-1m").textContent = data.rates.ocr_per_minute_1m;
+        document.getElementById("stat-rate-5m").textContent = data.rates.ocr_per_minute_5m;
+        const workers = data.workers || {};
+        document.getElementById("worker-chips").innerHTML =
+          workerChip("enhance", workers.enhance) +
+          workerChip("ocr", workers.ocr);
+        err.hidden = true;
+      }
+
+      const gpu = data.gpu || {};
+      const gpuEl = document.getElementById("gpu-chips");
+      const procEl = document.getElementById("proc-chips");
+      if (!gpu.available) {
+        gpuEl.innerHTML = '<span class="chip off">no NVIDIA GPU detected</span>';
+        procEl.innerHTML = "";
+      } else {
+        gpuEl.innerHTML = (gpu.gpus || []).map(g =>
+          `<span class="chip gpu">GPU ${g.index}: ${g.utilization_pct}% · ${g.memory_used_mib}/${g.memory_total_mib} MiB</span>`
+        ).join("");
+        const procs = gpu.relevant_processes || [];
+        procEl.innerHTML = procs.length
+          ? procs.map(p =>
+              `<span class="chip gpu">GPU ${p.gpu_index} · ${p.name} · pid ${p.pid} · ${p.memory_mib} MiB</span>`
+            ).join("")
+          : '<span class="chip off">no OCR GPU processes running</span>';
+      }
+
+      const updated = document.getElementById("stats-updated");
+      if (data.ts) {
+        const when = new Date(data.ts);
+        updated.textContent = `Updated ${when.toLocaleTimeString()}`;
+      }
+    }
+
+    async function refreshStats() {
+      try {
+        const res = await fetch("/api/stats");
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        renderStats(await res.json());
+      } catch (e) {
+        const err = document.getElementById("stats-error");
+        err.hidden = false;
+        err.textContent = `Stats unavailable: ${e.message}`;
+      }
+    }
+
+    refreshStats();
+    setInterval(refreshStats, 2000);
+  </script>
 </body>
 </html>

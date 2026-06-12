@@ -10,6 +10,7 @@ from watchfiles import Change, watch
 
 from packetpro.config import SUPPORTED_EXTENSIONS, AppConfig, ensure_data_dirs
 from packetpro.enhance import enhance_image, load_source_image, pdf_page_count, save_enhanced_image
+from packetpro.stats import record_event, start_heartbeat_thread, write_heartbeat
 from packetpro.utils import (
     file_sha256,
     move_to_failed,
@@ -72,6 +73,7 @@ def process_file(config: AppConfig, source_path: Path) -> list[Path]:
         }
         write_json(sidecar_path, payload)
         created_jobs.append(sidecar_path)
+        record_event(config, "enhanced", count=1, file=source_path.name, page=page_number)
         console.print(f"[green]Enhanced[/green] {source_path.name} page {page_number}/{pages}")
 
     return created_jobs
@@ -79,6 +81,7 @@ def process_file(config: AppConfig, source_path: Path) -> list[Path]:
 
 def run_enhance_worker(config: AppConfig) -> None:
     ensure_data_dirs(config)
+    start_heartbeat_thread(config, "enhance")
     console.print(f"[bold]PacketPro enhancer watching[/bold] {config.inbox}")
 
     try:
@@ -90,6 +93,7 @@ def run_enhance_worker(config: AppConfig) -> None:
                 if not _is_supported(path):
                     continue
                 try:
+                    write_heartbeat(config, "enhance", "processing", file=path.name)
                     process_file(config, path)
                 except Exception as exc:  # noqa: BLE001
                     console.print(f"[red]Enhance failed for {path}:[/red] {exc}")

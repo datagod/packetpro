@@ -11,6 +11,7 @@ from watchfiles import Change, watch
 from packetpro.config import AppConfig, ensure_data_dirs
 from packetpro.db import init_db, insert_document
 from packetpro.ocr import extract_text
+from packetpro.stats import record_event, start_heartbeat_thread, write_heartbeat
 from packetpro.utils import (
     archive_destination,
     file_sha256,
@@ -123,6 +124,13 @@ def process_job(config: AppConfig, sidecar_path: Path) -> None:
     write_json(sidecar_path, job)
     _cleanup_job(sidecar_path, job)
     _cleanup_marker_if_done(config, file_hash)
+    record_event(
+        config,
+        "ocr_complete",
+        count=1,
+        file=job["original_name"],
+        page=int(job.get("page_number", 1)),
+    )
 
     console.print(
         f"[green]OCR complete[/green] {job['original_name']} "
@@ -140,6 +148,12 @@ def _scan_pending(config: AppConfig) -> None:
             continue
         if job.get("status") == "pending":
             try:
+                write_heartbeat(
+                    config,
+                    "ocr",
+                    "processing",
+                    file=job.get("original_name", sidecar_path.name),
+                )
                 process_job(config, sidecar_path)
             except Exception as exc:  # noqa: BLE001
                 _handle_job_failure(config, sidecar_path, job, exc)
@@ -163,6 +177,7 @@ def _handle_job_failure(
 def run_ocr_worker(config: AppConfig) -> None:
     ensure_data_dirs(config)
     init_db(config.database)
+    start_heartbeat_thread(config, "ocr")
     console.print(f"[bold]PacketPro OCR watching[/bold] {config.transformed}")
 
     _scan_pending(config)
@@ -181,6 +196,12 @@ def run_ocr_worker(config: AppConfig) -> None:
                 sidecar_path = Path(path_str)
                 try:
                     job = read_json(sidecar_path)
+                    write_heartbeat(
+                        config,
+                        "ocr",
+                        "processing",
+                        file=job.get("original_name", sidecar_path.name),
+                    )
                     process_job(config, sidecar_path)
                 except Exception as exc:  # noqa: BLE001
                     try:

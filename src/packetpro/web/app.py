@@ -19,6 +19,7 @@ from packetpro.config import (
 )
 from packetpro.db import get_document, init_db, search_documents
 from packetpro.enhance import render_pdf_page
+from packetpro.stats import collect_stats
 
 TEMPLATES = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
 
@@ -109,6 +110,15 @@ def create_app(config: AppConfig | None = None) -> FastAPI:
                 status_code=303,
             )
         return RedirectResponse(url="/settings?saved=1", status_code=303)
+
+    @app.get("/api/stats")
+    async def api_stats() -> dict:
+        from packetpro.stats import get_gpu_stats
+
+        cfg = _try_load_config()
+        if cfg is None:
+            return {"configured": False, "gpu": get_gpu_stats()}
+        return {"configured": True, **collect_stats(cfg)}
 
     @app.get("/api/settings")
     async def api_settings() -> dict:
