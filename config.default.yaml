@@ -1,4 +1,4 @@
-data_root: ~/packetpro-data
+data_root: ~/TRANSFER/packetpro
 
 folders:
   inbox: inbox

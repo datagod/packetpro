@@ -13,6 +13,21 @@ pip install -e .
 packetpro init
 ```
 
+## Windows network access
+
+PacketPro data lives inside the existing Samba share:
+
+```
+\\HAL\SambaShare\packetpro\inbox      ← drop files here
+\\HAL\SambaShare\packetpro\archive    ← processed originals
+```
+
+For a dedicated share name (`\\HAL\PacketPro`), run once with sudo:
+
+```bash
+sudo ./scripts/setup-samba-share.sh
+```
+
 Start the three workers (separate terminals or systemd):
 
 ```bash
@@ -21,7 +36,7 @@ packetpro ocr       # watches ~/packetpro-data/transformed
 packetpro web       # http://127.0.0.1:8787
 ```
 
-Drop files into `~/packetpro-data/inbox/` and search at [http://127.0.0.1:8787](http://127.0.0.1:8787).
+Drop files into `~/TRANSFER/packetpro/inbox/` (or the Windows path above) and search at [http://127.0.0.1:8787](http://127.0.0.1:8787).
 
 ## Requirements
 
@@ -33,11 +48,11 @@ Drop files into `~/packetpro-data/inbox/` and search at [http://127.0.0.1:8787](
 
 | Path | Purpose |
 |------|---------|
-| `~/packetpro-data/inbox/` | Drop images or PDFs here |
-| `~/packetpro-data/transformed/` | Enhanced images (internal) |
-| `~/packetpro-data/archive/` | Originals after OCR |
-| `~/packetpro-data/failed/` | Files that failed processing |
-| `~/packetpro-data/packetpro.db` | SQLite full-text index |
+| `~/TRANSFER/packetpro/inbox/` | Drop images or PDFs here (Samba-accessible) |
+| `~/TRANSFER/packetpro/transformed/` | Enhanced images (internal) |
+| `~/TRANSFER/packetpro/archive/` | Originals after OCR |
+| `~/TRANSFER/packetpro/failed/` | Files that failed processing |
+| `~/TRANSFER/packetpro/packetpro.db` | SQLite full-text index |
 
 ## Configuration
 
