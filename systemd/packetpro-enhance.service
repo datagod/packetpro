@@ -1,0 +1,13 @@
+[Unit]
+Description=PacketPro image enhancement worker
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=@INSTALL_ROOT@
+ExecStart=@INSTALL_ROOT@/.venv/bin/packetpro enhance
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target

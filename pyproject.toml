@@ -1,0 +1,45 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "packetpro"
+version = "0.1.0"
+description = "Drop-folder document OCR pipeline with GPU vision OCR and full-text search"
+readme = "README.md"
+requires-python = ">=3.11"
+license = {text = "MIT"}
+authors = [{name = "PacketPro Contributors"}]
+keywords = ["ocr", "document", "ollama", "vision", "search"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Intended Audience :: End Users/Desktop",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Topic :: Multimedia :: Graphics",
+    "Topic :: Text Processing :: Indexing",
+]
+dependencies = [
+    "watchfiles>=1.0",
+    "opencv-python-headless>=4.8",
+    "pymupdf>=1.24",
+    "pillow>=10.0",
+    "fastapi>=0.100",
+    "uvicorn>=0.23",
+    "jinja2>=3.1",
+    "httpx>=0.27",
+    "pyyaml>=6.0",
+    "rich>=13.0",
+]
+
+[project.scripts]
+packetpro = "packetpro.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/datagod/packetpro"
+Issues = "https://github.com/datagod/packetpro/issues"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["packetpro*"]

@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PacketPro</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg: #0f1419;
+      --panel: #1a2332;
+      --text: #e7ecf3;
+      --muted: #9aa7b8;
+      --accent: #4da3ff;
+      --border: #2b3a4f;
+      --mark: #ffe08a;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", system-ui, sans-serif;
+      background: linear-gradient(180deg, #0b1016, var(--bg));
+      color: var(--text);
+      min-height: 100vh;
+    }
+    .wrap {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 2rem 1.25rem 3rem;
+    }
+    header h1 {
+      margin: 0 0 0.25rem;
+      font-size: 2rem;
+      letter-spacing: 0.02em;
+    }
+    header p {
+      margin: 0 0 1.5rem;
+      color: var(--muted);
+    }
+    form {
+      display: flex;
+      gap: 0.75rem;
+      margin-bottom: 1.5rem;
+    }
+    input[type="search"] {
+      flex: 1;
+      padding: 0.85rem 1rem;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: var(--panel);
+      color: var(--text);
+      font-size: 1rem;
+    }
+    button {
+      padding: 0.85rem 1.2rem;
+      border-radius: 10px;
+      border: 0;
+      background: var(--accent);
+      color: #041018;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .meta {
+      color: var(--muted);
+      margin-bottom: 1rem;
+    }
+    .result {
+      display: grid;
+      grid-template-columns: 180px 1fr;
+      gap: 1rem;
+      padding: 1rem;
+      margin-bottom: 1rem;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: rgba(26, 35, 50, 0.75);
+    }
+    .thumb {
+      width: 100%;
+      aspect-ratio: 4 / 5;
+      object-fit: cover;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: #111;
+    }
+    .title {
+      font-weight: 600;
+      margin-bottom: 0.35rem;
+    }
+    .snippet {
+      line-height: 1.5;
+      color: #d5deea;
+    }
+    mark {
+      background: var(--mark);
+      color: #111;
+      padding: 0 0.15rem;
+      border-radius: 3px;
+    }
+    .empty {
+      color: var(--muted);
+      padding: 2rem 0;
+      text-align: center;
+    }
+    @media (max-width: 700px) {
+      .result { grid-template-columns: 1fr; }
+      .thumb { max-height: 220px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>PacketPro</h1>
+      <p>Search OCR text across archived documents.</p>
+    </header>
+
+    <form method="get" action="/">
+      <input type="search" name="q" value="{{ query }}" placeholder="Search filenames and extracted text..." autofocus>
+      <button type="submit">Search</button>
+    </form>
+
+    {% if query %}
+      <div class="meta">{{ result_count }} result{% if result_count != 1 %}s{% endif %} for "{{ query }}"</div>
+    {% endif %}
+
+    {% if results %}
+      {% for item in results %}
+        <article class="result">
+          <a href="/images/{{ item.document.id }}" target="_blank" rel="noopener">
+            <img class="thumb" src="/images/{{ item.document.id }}" alt="{{ item.document.original_name }}">
+          </a>
+          <div>
+            <div class="title">
+              {{ item.document.original_name }}
+              {% if item.document.page_number > 1 %}
+                <span>— page {{ item.document.page_number }}</span>
+              {% endif %}
+            </div>
+            <div class="snippet">{{ item.snippet | safe }}</div>
+          </div>
+        </article>
+      {% endfor %}
+    {% elif query %}
+      <div class="empty">No matches found.</div>
+    {% else %}
+      <div class="empty">Enter a search term to find archived documents.</div>
+    {% endif %}
+  </div>
+</body>
+</html>

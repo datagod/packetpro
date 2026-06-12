@@ -1,0 +1,37 @@
+data_root: ~/packetpro-data
+
+folders:
+  inbox: inbox
+  transformed: transformed
+  archive: archive
+  failed: failed
+
+database: packetpro.db
+
+enhance:
+  denoise: true
+  clahe: true
+  adaptive_threshold: true
+  deskew: true
+  upscale_min_side: 1200
+  upscale_factor: 2.0
+  pdf_dpi: 200
+
+ocr:
+  ollama_url: http://127.0.0.1:11434
+  model: qwen2.5vl:7b
+  prompt: >-
+    Extract all visible text from this image verbatim.
+    Preserve line breaks and paragraph structure.
+    Output only the extracted text with no commentary.
+  timeout_seconds: 300
+  max_retries: 3
+  num_ctx: 32768
+
+web:
+  host: 127.0.0.1
+  port: 8787
+
+watcher:
+  settle_seconds: 1.0
+  poll_interval: 0.5
