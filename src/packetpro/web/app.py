@@ -183,6 +183,10 @@ def create_app(config: AppConfig | None = None) -> FastAPI:
             return Response(content=encoded.tobytes(), media_type="image/png")
 
         media_type = mimetypes.guess_type(image_path.name)[0] or "application/octet-stream"
-        return FileResponse(image_path, media_type=media_type, filename=doc.original_name)
+        return FileResponse(
+            image_path,
+            media_type=media_type,
+            content_disposition_type="inline",
+        )
 
     return app
