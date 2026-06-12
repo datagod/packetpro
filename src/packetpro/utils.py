@@ -15,6 +15,12 @@ def utc_now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+def file_identity_hash(path: Path) -> str:
+    stat = path.stat()
+    payload = f"{path.name}:{stat.st_size}"
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
 def file_sha256(path: Path, chunk_size: int = 1024 * 1024) -> str:
     digest = hashlib.sha256()
     with path.open("rb") as fh:

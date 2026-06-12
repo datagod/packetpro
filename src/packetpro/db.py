@@ -45,6 +45,13 @@ CREATE TRIGGER IF NOT EXISTS documents_au AFTER UPDATE ON documents BEGIN
     INSERT INTO documents_fts(rowid, original_name, ocr_text)
     VALUES (new.id, new.original_name, new.ocr_text);
 END;
+
+CREATE TABLE IF NOT EXISTS processed_files (
+    file_hash     TEXT PRIMARY KEY,
+    original_name TEXT NOT NULL,
+    file_size     INTEGER NOT NULL,
+    processed_at  TEXT NOT NULL
+);
 """
 
 
@@ -101,6 +108,34 @@ def insert_document(
         )
         conn.commit()
         return int(cursor.lastrowid)
+
+
+def file_hash_exists(db_path: Path, file_hash: str) -> bool:
+    with sqlite3.connect(db_path) as conn:
+        row = conn.execute(
+            "SELECT 1 FROM processed_files WHERE file_hash = ? LIMIT 1",
+            (file_hash,),
+        ).fetchone()
+    return row is not None
+
+
+def register_processed_file(
+    db_path: Path,
+    *,
+    file_hash: str,
+    original_name: str,
+    file_size: int,
+) -> None:
+    with sqlite3.connect(db_path) as conn:
+        conn.execute(
+            """
+            INSERT OR IGNORE INTO processed_files (
+                file_hash, original_name, file_size, processed_at
+            ) VALUES (?, ?, ?, ?)
+            """,
+            (file_hash, original_name, file_size, utc_now()),
+        )
+        conn.commit()
 
 
 def get_document(db_path: Path, doc_id: int) -> Document | None:

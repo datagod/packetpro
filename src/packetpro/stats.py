@@ -257,6 +257,7 @@ def collect_stats(config: AppConfig) -> dict[str, Any]:
         "totals": {
             "enhanced_events_1h": sum(1 for e in events if e.get("type") == "enhanced"),
             "ocr_complete_events_1h": sum(1 for e in events if e.get("type") == "ocr_complete"),
+            "duplicate_skipped_1h": sum(1 for e in events if e.get("type") == "duplicate_skipped"),
         },
         "workers": {
             "enhance": _read_heartbeat(config, "enhance"),

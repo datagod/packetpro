@@ -2,17 +2,18 @@
 
 from __future__ import annotations
 
-import uuid
+import json
 from pathlib import Path
 
 from rich.console import Console
 from watchfiles import Change, watch
 
 from packetpro.config import SUPPORTED_EXTENSIONS, AppConfig, ensure_data_dirs
+from packetpro.db import file_hash_exists, init_db
 from packetpro.enhance import enhance_image, load_source_image, pdf_page_count, save_enhanced_image
 from packetpro.stats import record_event, start_heartbeat_thread, write_heartbeat
 from packetpro.utils import (
-    file_sha256,
+    file_identity_hash,
     move_to_failed,
     utc_now,
     wait_for_stable_file,
@@ -20,6 +21,7 @@ from packetpro.utils import (
 )
 
 console = Console()
+DUPLICATE_MESSAGE = "Duplicate file: already processed"
 
 
 def _is_supported(path: Path) -> bool:
@@ -28,6 +30,24 @@ def _is_supported(path: Path) -> bool:
 
 def _job_id(stem: str, page_number: int, file_hash: str) -> str:
     return f"{stem}_p{page_number:03d}_{file_hash[:12]}"
+
+
+def _hash_in_flight(config: AppConfig, file_hash: str) -> bool:
+    for sidecar_path in config.transformed.glob("*.json"):
+        if sidecar_path.name.startswith(".archive_"):
+            continue
+        try:
+            job = json.loads(sidecar_path.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError):
+            continue
+        if job.get("file_hash") == file_hash and job.get("status") == "pending":
+            return True
+    return False
+
+
+def _is_duplicate(config: AppConfig, source_path: Path, file_hash: str) -> bool:
+    init_db(config.database)
+    return file_hash_exists(config.database, file_hash) or _hash_in_flight(config, file_hash)
 
 
 def process_file(config: AppConfig, source_path: Path) -> list[Path]:
@@ -42,7 +62,15 @@ def process_file(config: AppConfig, source_path: Path) -> list[Path]:
         console.print(f"[yellow]Skipping unstable file:[/yellow] {source_path}")
         return []
 
-    file_hash = file_sha256(source_path)
+    file_hash = file_identity_hash(source_path)
+    file_size = source_path.stat().st_size
+
+    if _is_duplicate(config, source_path, file_hash):
+        move_to_failed(source_path, config.failed, DUPLICATE_MESSAGE)
+        record_event(config, "duplicate_skipped", file=source_path.name)
+        console.print(f"[yellow]Duplicate skipped:[/yellow] {source_path.name}")
+        return []
+
     created_at = utc_now()
     suffix = source_path.suffix.lower()
     pages = pdf_page_count(source_path) if suffix == ".pdf" else 1
@@ -69,6 +97,7 @@ def process_file(config: AppConfig, source_path: Path) -> list[Path]:
             "page_number": page_number,
             "page_count": pages,
             "file_hash": file_hash,
+            "file_size": file_size,
             "created_at": created_at,
         }
         write_json(sidecar_path, payload)

@@ -225,6 +225,11 @@
           <div class="stat-value" id="stat-rate-5m">-</div>
           <div class="stat-sub">items / min (last 5m)</div>
         </div>
+        <div class="stat-card">
+          <div class="stat-label">Duplicates</div>
+          <div class="stat-value" id="stat-duplicates">-</div>
+          <div class="stat-sub">skipped (last 1h)</div>
+        </div>
       </div>
       <div class="stat-label">Workers</div>
       <div class="worker-row" id="worker-chips"></div>
@@ -290,6 +295,8 @@
         document.getElementById("stat-queue").textContent = data.queues.transformed_pending;
         document.getElementById("stat-rate-1m").textContent = data.rates.ocr_per_minute_1m;
         document.getElementById("stat-rate-5m").textContent = data.rates.ocr_per_minute_5m;
+        document.getElementById("stat-duplicates").textContent =
+          (data.totals && data.totals.duplicate_skipped_1h) || 0;
         const workers = data.workers || {};
         document.getElementById("worker-chips").innerHTML =
           workerChip("enhance", workers.enhance) +

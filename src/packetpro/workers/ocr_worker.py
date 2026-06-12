@@ -9,12 +9,11 @@ from rich.console import Console
 from watchfiles import Change, watch
 
 from packetpro.config import AppConfig, ensure_data_dirs
-from packetpro.db import init_db, insert_document
+from packetpro.db import init_db, insert_document, register_processed_file
 from packetpro.ocr import extract_text
 from packetpro.stats import record_event, start_heartbeat_thread, write_heartbeat
 from packetpro.utils import (
     archive_destination,
-    file_sha256,
     move_to_failed,
     read_json,
     utc_now,
@@ -80,6 +79,24 @@ def _cleanup_marker_if_done(config: AppConfig, file_hash: str) -> None:
         marker.unlink()
 
 
+def _register_if_complete(config: AppConfig, job: dict, file_hash: str) -> None:
+    if _pending_siblings(config, file_hash):
+        return
+
+    file_size = int(job.get("file_size", 0))
+    if file_size == 0:
+        archive_path = job.get("archive_path")
+        if archive_path and Path(archive_path).is_file():
+            file_size = Path(archive_path).stat().st_size
+
+    register_processed_file(
+        config.database,
+        file_hash=file_hash,
+        original_name=str(job["original_name"]),
+        file_size=file_size,
+    )
+
+
 def _cleanup_job(sidecar_path: Path, job: dict) -> None:
     enhanced_path = Path(job["enhanced_path"])
     if enhanced_path.exists():
@@ -124,6 +141,7 @@ def process_job(config: AppConfig, sidecar_path: Path) -> None:
     write_json(sidecar_path, job)
     _cleanup_job(sidecar_path, job)
     _cleanup_marker_if_done(config, file_hash)
+    _register_if_complete(config, job, file_hash)
     record_event(
         config,
         "ocr_complete",
