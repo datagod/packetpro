@@ -101,6 +101,16 @@
       padding: 2rem 0;
       text-align: center;
     }
+    nav { margin-bottom: 1rem; }
+    nav a { color: var(--accent); text-decoration: none; margin-right: 1rem; }
+    .banner {
+      margin-bottom: 1rem;
+      padding: 0.85rem 1rem;
+      border-radius: 8px;
+      background: rgba(77, 163, 255, 0.12);
+      color: #b9d9ff;
+    }
+    .banner a { color: var(--accent); }
     @media (max-width: 700px) {
       .result { grid-template-columns: 1fr; }
       .thumb { max-height: 220px; }
@@ -109,10 +119,22 @@
 </head>
 <body>
   <div class="wrap">
+    <nav>
+      <a href="/">Search</a>
+      <a href="/settings">Settings</a>
+    </nav>
+
     <header>
       <h1>PacketPro</h1>
       <p>Search OCR text across archived documents.</p>
     </header>
+
+    {% if not configured %}
+      <div class="banner">
+        Folder locations are not configured yet.
+        <a href="/settings">Open Settings</a> to choose where inbox, archive, and database files live.
+      </div>
+    {% endif %}
 
     <form method="get" action="/">
       <input type="search" name="q" value="{{ query }}" placeholder="Search filenames and extracted text..." autofocus>

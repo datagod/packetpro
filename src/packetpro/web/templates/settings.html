@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PacketPro Settings</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg: #0f1419;
+      --panel: #1a2332;
+      --text: #e7ecf3;
+      --muted: #9aa7b8;
+      --accent: #4da3ff;
+      --border: #2b3a4f;
+      --ok: #7dffb2;
+      --err: #ff8f8f;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", system-ui, sans-serif;
+      background: linear-gradient(180deg, #0b1016, var(--bg));
+      color: var(--text);
+      min-height: 100vh;
+    }
+    .wrap { max-width: 760px; margin: 0 auto; padding: 2rem 1.25rem 3rem; }
+    nav { margin-bottom: 1.5rem; }
+    nav a { color: var(--accent); text-decoration: none; margin-right: 1rem; }
+    h1 { margin: 0 0 0.35rem; }
+    p { color: var(--muted); line-height: 1.5; }
+    .card {
+      margin-top: 1.25rem;
+      padding: 1.25rem;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: rgba(26, 35, 50, 0.75);
+    }
+    label {
+      display: block;
+      margin: 1rem 0 0.35rem;
+      font-weight: 600;
+    }
+    input {
+      width: 100%;
+      padding: 0.75rem 0.9rem;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--panel);
+      color: var(--text);
+      font-size: 1rem;
+    }
+    .hint { color: var(--muted); font-size: 0.9rem; margin-top: 0.25rem; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+    button {
+      margin-top: 1.25rem;
+      padding: 0.85rem 1.2rem;
+      border-radius: 10px;
+      border: 0;
+      background: var(--accent);
+      color: #041018;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .banner {
+      margin-top: 1rem;
+      padding: 0.85rem 1rem;
+      border-radius: 8px;
+    }
+    .ok { background: rgba(125, 255, 178, 0.12); color: var(--ok); }
+    .err { background: rgba(255, 143, 143, 0.12); color: var(--err); }
+    code { color: #d5deea; }
+    @media (max-width: 700px) { .grid { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <nav>
+      <a href="/">Search</a>
+      <a href="/settings">Settings</a>
+    </nav>
+
+    <h1>Folder locations</h1>
+    <p>
+      These paths are saved outside the git repository at
+      <code>{{ settings.config_path }}</code>.
+    </p>
+
+    {% if saved %}
+      <div class="banner ok">Settings saved. Restart <code>packetpro-enhance</code> and <code>packetpro-ocr</code> if you changed folder locations.</div>
+    {% endif %}
+    {% if error %}
+      <div class="banner err">{{ error }}</div>
+    {% endif %}
+
+    <form class="card" method="post" action="/settings">
+      <label for="data_root">Data root</label>
+      <input id="data_root" name="data_root" value="{{ settings.data_root }}" placeholder="/home/you/shared/packetpro" required>
+      <div class="hint">Base directory for all PacketPro folders. Use a Samba-shared path for Windows access.</div>
+
+      <div class="grid">
+        <div>
+          <label for="inbox">Inbox folder</label>
+          <input id="inbox" name="inbox" value="{{ settings.folders.inbox }}" required>
+        </div>
+        <div>
+          <label for="transformed">Transformed folder</label>
+          <input id="transformed" name="transformed" value="{{ settings.folders.transformed }}" required>
+        </div>
+        <div>
+          <label for="archive">Archive folder</label>
+          <input id="archive" name="archive" value="{{ settings.folders.archive }}" required>
+        </div>
+        <div>
+          <label for="failed">Failed folder</label>
+          <input id="failed" name="failed" value="{{ settings.folders.failed }}" required>
+        </div>
+      </div>
+
+      <label for="database">Database file</label>
+      <input id="database" name="database" value="{{ settings.database }}" required>
+      <div class="hint">Filename inside the data root (for example <code>packetpro.db</code>).</div>
+
+      <button type="submit">Save folder locations</button>
+    </form>
+  </div>
+</body>
+</html>

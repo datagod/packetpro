@@ -6,27 +6,53 @@ import mimetypes
 from pathlib import Path
 
 import cv2
-from fastapi import FastAPI, HTTPException, Query, Request
-from fastapi.responses import FileResponse, HTMLResponse, Response
+from fastapi import FastAPI, Form, HTTPException, Query, Request
+from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
 
-from packetpro.config import AppConfig, load_config
+from packetpro.config import (
+    AppConfig,
+    ConfigError,
+    get_paths_settings,
+    load_config,
+    save_paths_settings,
+)
 from packetpro.db import get_document, init_db, search_documents
 from packetpro.enhance import render_pdf_page
 
 TEMPLATES = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
 
 
-def create_app(config: AppConfig | None = None) -> FastAPI:
-    cfg = config or load_config()
-    init_db(cfg.database)
-    archive_root = cfg.archive.resolve()
+def _try_load_config() -> AppConfig | None:
+    try:
+        return load_config()
+    except ConfigError:
+        return None
 
+
+def create_app(config: AppConfig | None = None) -> FastAPI:
     app = FastAPI(title="PacketPro", version="0.1.0")
+
+    def runtime_config() -> AppConfig:
+        if config is not None:
+            return config
+        loaded = _try_load_config()
+        if loaded is None:
+            raise HTTPException(
+                status_code=503,
+                detail="Folder locations are not configured. Visit /settings first.",
+            )
+        return loaded
 
     @app.get("/", response_class=HTMLResponse)
     async def index(request: Request, q: str = Query(default="")) -> HTMLResponse:
-        results = search_documents(cfg.database, q) if q.strip() else []
+        settings = get_paths_settings()
+        cfg = _try_load_config()
+        results = []
+        if cfg is not None and q.strip():
+            init_db(cfg.database)
+            results = search_documents(cfg.database, q)
+
         return TEMPLATES.TemplateResponse(
             request,
             "index.html",
@@ -34,11 +60,75 @@ def create_app(config: AppConfig | None = None) -> FastAPI:
                 "query": q,
                 "results": results,
                 "result_count": len(results),
+                "configured": settings["configured"],
+                "paths": settings,
             },
         )
 
+    @app.get("/settings", response_class=HTMLResponse)
+    async def settings_page(
+        request: Request,
+        saved: str = Query(default=""),
+        error: str = Query(default=""),
+    ) -> HTMLResponse:
+        settings = get_paths_settings()
+        return TEMPLATES.TemplateResponse(
+            request,
+            "settings.html",
+            {
+                "settings": settings,
+                "saved": saved == "1",
+                "error": error,
+            },
+        )
+
+    @app.post("/settings")
+    async def settings_save(
+        data_root: str = Form(...),
+        inbox: str = Form(...),
+        transformed: str = Form(...),
+        archive: str = Form(...),
+        failed: str = Form(...),
+        database: str = Form(...),
+    ) -> RedirectResponse:
+        try:
+            cfg = save_paths_settings(
+                data_root=data_root,
+                inbox=inbox,
+                transformed=transformed,
+                archive=archive,
+                failed=failed,
+                database=database,
+            )
+            init_db(cfg.database)
+        except ConfigError as exc:
+            from urllib.parse import quote
+
+            return RedirectResponse(
+                url=f"/settings?error={quote(str(exc))}",
+                status_code=303,
+            )
+        return RedirectResponse(url="/settings?saved=1", status_code=303)
+
+    @app.get("/api/settings")
+    async def api_settings() -> dict:
+        settings = get_paths_settings()
+        cfg = _try_load_config()
+        resolved = None
+        if cfg is not None:
+            resolved = {
+                "inbox": str(cfg.inbox),
+                "transformed": str(cfg.transformed),
+                "archive": str(cfg.archive),
+                "failed": str(cfg.failed),
+                "database": str(cfg.database),
+            }
+        return {"settings": settings, "resolved_paths": resolved}
+
     @app.get("/api/search")
     async def api_search(q: str = Query(..., min_length=1)) -> dict:
+        cfg = runtime_config()
+        init_db(cfg.database)
         results = search_documents(cfg.database, q)
         return {
             "query": q,
@@ -59,6 +149,8 @@ def create_app(config: AppConfig | None = None) -> FastAPI:
 
     @app.get("/images/{doc_id}")
     async def get_image(doc_id: int) -> FileResponse:
+        cfg = runtime_config()
+        archive_root = cfg.archive.resolve()
         doc = get_document(cfg.database, doc_id)
         if doc is None:
             raise HTTPException(status_code=404, detail="Document not found")

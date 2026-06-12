@@ -1,0 +1,12 @@
+# Example user config — copy to ~/.config/packetpro/config.yaml
+# or configure paths from the web UI at http://127.0.0.1:8787/settings
+
+data_root: /path/to/your/packetpro-data
+
+folders:
+  inbox: inbox
+  transformed: transformed
+  archive: archive
+  failed: failed
+
+database: packetpro.db

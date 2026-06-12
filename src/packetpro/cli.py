@@ -8,7 +8,7 @@ from pathlib import Path
 import uvicorn
 from rich.console import Console
 
-from packetpro.config import load_config
+from packetpro.config import ConfigError, load_config
 from packetpro.web.app import create_app
 from packetpro.workers.enhance_worker import run_enhance_worker
 from packetpro.workers.ocr_worker import run_ocr_worker
@@ -22,32 +22,52 @@ def _add_config_arg(parser: argparse.ArgumentParser) -> None:
         "--config",
         type=Path,
         default=None,
-        help="Path to config YAML (default: config.default.yaml in project root)",
+        help="Path to config YAML (default: ~/.config/packetpro/config.yaml)",
     )
 
 
+def _load_or_exit(config_path: Path | None):
+    try:
+        return load_config(config_path)
+    except ConfigError as exc:
+        console.print(f"[red]Configuration error:[/red] {exc}")
+        raise SystemExit(1) from exc
+
+
 def cmd_enhance(args: argparse.Namespace) -> None:
-    config = load_config(args.config)
+    config = _load_or_exit(args.config)
     run_enhance_worker(config)
 
 
 def cmd_ocr(args: argparse.Namespace) -> None:
-    config = load_config(args.config)
+    config = _load_or_exit(args.config)
     run_ocr_worker(config)
 
 
+def _web_bind(config_path: Path | None) -> tuple[str, int]:
+    from packetpro.config import load_raw_config
+
+    raw, _ = load_raw_config(config_path)
+    web_raw = raw.get("web", {})
+    return str(web_raw.get("host", "127.0.0.1")), int(web_raw.get("port", 8787))
+
+
 def cmd_web(args: argparse.Namespace) -> None:
-    config = load_config(args.config)
-    app = create_app(config)
-    uvicorn.run(app, host=config.web.host, port=config.web.port, log_level="info")
+    host, port = _web_bind(args.config)
+    try:
+        config = load_config(args.config)
+    except ConfigError:
+        app = create_app()
+    else:
+        app = create_app(config)
+        host, port = config.web.host, config.web.port
+    uvicorn.run(app, host=host, port=port, log_level="info")
 
 
 def cmd_init(args: argparse.Namespace) -> None:
-    from packetpro.config import ensure_data_dirs
     from packetpro.db import init_db
 
-    config = load_config(args.config)
-    ensure_data_dirs(config)
+    config = _load_or_exit(args.config)
     init_db(config.database)
     console.print(f"[green]Initialized data directories at[/green] {config.data_root}")
     console.print(f"[green]Database ready at[/green] {config.database}")

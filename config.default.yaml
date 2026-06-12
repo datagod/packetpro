@@ -1,12 +1,6 @@
-data_root: ~/TRANSFER/packetpro
-
-folders:
-  inbox: inbox
-  transformed: transformed
-  archive: archive
-  failed: failed
-
-database: packetpro.db
+# PacketPro defaults (safe to commit — no folder paths here).
+# Folder locations are configured via the web UI and stored in:
+#   ~/.config/packetpro/config.yaml
 
 enhance:
   denoise: true
