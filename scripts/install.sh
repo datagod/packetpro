@@ -8,9 +8,12 @@ UNIT_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/systemd/user"
 python3 -m venv "$VENV"
 "$VENV/bin/pip" install --upgrade pip
 "$VENV/bin/pip" install -e "$ROOT"
+# PaddleOCR needs the GPU build of PaddlePaddle (CPU-only wheel cannot use CUDA).
+"$VENV/bin/pip" install \
+  https://paddle-whl.bj.bcebos.com/stable/cu126/paddlepaddle-gpu/paddlepaddle_gpu-3.2.0-cp313-cp313-linux_x86_64.whl
 
 mkdir -p "$UNIT_DIR"
-for svc in enhance ocr web; do
+for svc in enhance ocr watch web; do
   sed "s|@INSTALL_ROOT@|$ROOT|g" "$ROOT/systemd/packetpro-${svc}.service" \
     > "$UNIT_DIR/packetpro-${svc}.service"
 done
@@ -18,4 +21,4 @@ done
 systemctl --user daemon-reload
 echo "Installed PacketPro into $VENV"
 echo "Enable services with:"
-echo "  systemctl --user enable --now packetpro-enhance packetpro-ocr packetpro-web"
+echo "  systemctl --user enable --now packetpro-enhance packetpro-ocr packetpro-watch packetpro-web"

@@ -23,10 +23,56 @@
       color: var(--text);
       min-height: 100vh;
     }
-    .wrap {
-      max-width: 1100px;
-      margin: 0 auto;
-      padding: 2rem 1.25rem 3rem;
+    .page-layout {
+      display: flex;
+      align-items: stretch;
+      width: 100%;
+      margin: 0;
+      padding: 1.25rem clamp(0.5rem, 1vw, 0.85rem) 2rem;
+      min-height: calc(100vh - 2rem);
+      gap: 0;
+    }
+    .stats-sidebar,
+    .activity-sidebar {
+      flex-shrink: 0;
+      position: sticky;
+      top: 1.25rem;
+      height: calc(100vh - 2.5rem);
+      min-height: 14rem;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+    .stats-sidebar {
+      width: 18rem;
+      min-width: 11rem;
+      max-width: 40vw;
+    }
+    .activity-sidebar {
+      width: clamp(18rem, 22vw, 28rem);
+      min-width: 11rem;
+      max-width: 40vw;
+    }
+    .main-col {
+      flex: 1 1 auto;
+      min-width: 14rem;
+      max-height: calc(100vh - 2.5rem);
+      overflow-y: auto;
+      padding: 0 0.85rem;
+    }
+    .col-resizer {
+      flex-shrink: 0;
+      width: 7px;
+      margin: 0 0.1rem;
+      cursor: col-resize;
+      border-radius: 4px;
+      align-self: stretch;
+      background: transparent;
+      transition: background 0.15s ease;
+    }
+    .col-resizer:hover,
+    .col-resizer.dragging {
+      background: rgba(77, 163, 255, 0.28);
     }
     header h1 {
       margin: 0 0 0.25rem;
@@ -64,10 +110,43 @@
       color: var(--muted);
       margin-bottom: 1rem;
     }
+    .result-actions {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.6rem;
+      margin-bottom: 1rem;
+      padding: 0.75rem 1rem;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: rgba(26, 35, 50, 0.75);
+    }
+    .result-actions .action-btn {
+      padding: 0.45rem 0.9rem;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--panel);
+      color: var(--text);
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .result-actions .action-btn:hover {
+      border-color: var(--accent);
+      color: #b9d9ff;
+    }
+    .result-actions .action-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .result-actions .action-status {
+      color: var(--muted);
+      font-size: 0.82rem;
+    }
     .result {
       display: grid;
-      grid-template-columns: 180px 1fr;
-      gap: 1rem;
+      grid-template-columns: minmax(160px, 14vw) minmax(0, 1fr);
+      gap: 1.25rem;
       padding: 1rem;
       margin-bottom: 1rem;
       border: 1px solid var(--border);
@@ -85,6 +164,28 @@
     .title {
       font-weight: 600;
       margin-bottom: 0.35rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+    }
+    .title-text { min-width: 0; }
+    .delete-btn {
+      flex-shrink: 0;
+      padding: 0.2rem 0.55rem;
+      border-radius: 6px;
+      border: 1px solid #7a3b3b;
+      background: rgba(90, 45, 45, 0.55);
+      color: #ffb0b0;
+      font-size: 0.75rem;
+      font-weight: 600;
+      cursor: pointer;
+      line-height: 1.2;
+    }
+    .delete-btn:hover { background: rgba(122, 59, 59, 0.75); }
+    .delete-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
     }
     .ocr-text {
       line-height: 1.5;
@@ -120,12 +221,38 @@
       color: #b9d9ff;
     }
     .banner a { color: var(--accent); }
-    .stats-panel {
-      margin-bottom: 1.5rem;
+    .stats-panel,
+    .activity-panel {
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      min-height: 0;
       padding: 1rem;
       border: 1px solid var(--border);
       border-radius: 12px;
       background: rgba(26, 35, 50, 0.75);
+    }
+    .stats-panel {
+      overflow-y: auto;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(154, 167, 184, 0.42) transparent;
+    }
+    .stats-panel::-webkit-scrollbar { width: 5px; }
+    .stats-panel::-webkit-scrollbar-thumb {
+      background: rgba(154, 167, 184, 0.38);
+      border-radius: 999px;
+    }
+    .stats-sidebar .stats-grid {
+      grid-template-columns: 1fr;
+    }
+    .stats-sidebar .stats-head {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 0.5rem;
+    }
+    .stats-sidebar .control-btn {
+      width: 100%;
+      text-align: center;
     }
     .stats-head {
       display: flex;
@@ -164,7 +291,103 @@
     }
     .stat-label { color: var(--muted); font-size: 0.82rem; }
     .stat-value { font-size: 1.45rem; font-weight: 700; margin-top: 0.15rem; }
+    .stat-value.time-eta {
+      font-size: 1.35rem;
+      font-variant-numeric: tabular-nums;
+      letter-spacing: 0.04em;
+    }
     .stat-sub { color: var(--muted); font-size: 0.78rem; margin-top: 0.15rem; }
+    .watch-scan-btn {
+      margin-top: 0.55rem;
+      width: 100%;
+      padding: 0.45rem 0.65rem;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: rgba(77, 163, 255, 0.14);
+      color: var(--accent);
+      font-weight: 600;
+      font-size: 0.78rem;
+      cursor: pointer;
+    }
+    .watch-scan-btn:hover:not(:disabled) {
+      background: rgba(77, 163, 255, 0.24);
+    }
+    .watch-scan-btn:disabled {
+      opacity: 0.55;
+      cursor: wait;
+    }
+    .watch-scan-result {
+      color: var(--muted);
+      font-size: 0.74rem;
+      margin-top: 0.35rem;
+      line-height: 1.35;
+    }
+    .speedometer-card {
+      grid-column: 1 / -1;
+    }
+    .speedometer {
+      margin-top: 0.35rem;
+    }
+    .speedometer-svg {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+    .speedometer-arc-bg {
+      fill: none;
+      stroke: rgba(154, 167, 184, 0.2);
+      stroke-width: 10;
+      stroke-linecap: round;
+    }
+    .speedometer-arc-fill {
+      fill: none;
+      stroke: url(#speedometerGradient);
+      stroke-width: 10;
+      stroke-linecap: round;
+      transition: stroke-dashoffset 0.45s ease;
+    }
+    .speedometer-tick {
+      stroke: rgba(154, 167, 184, 0.35);
+      stroke-width: 1.5;
+    }
+    .speedometer-needle {
+      stroke: #ff6b6b;
+      stroke-width: 3;
+      stroke-linecap: round;
+      transform-origin: 100px 95px;
+      transition: transform 0.45s ease;
+    }
+    .speedometer-hub {
+      fill: var(--text);
+    }
+    .speedometer-readout {
+      display: flex;
+      align-items: baseline;
+      justify-content: center;
+      gap: 0.4rem;
+      margin-top: 0.2rem;
+      line-height: 1;
+    }
+    .speedometer-value {
+      font-size: 1.55rem;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      color: var(--text);
+    }
+    .speedometer-unit {
+      font-size: 0.78rem;
+      color: var(--muted);
+      letter-spacing: 0.02em;
+      white-space: nowrap;
+    }
+    .speedometer-scale {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.68rem;
+      color: var(--muted);
+      margin-top: 0.35rem;
+      padding: 0 0.35rem;
+    }
     .worker-row, .gpu-row, .proc-row {
       display: flex;
       flex-wrap: wrap;
@@ -183,14 +406,207 @@
     .chip.off { border-color: #7a3b3b; color: #ffb0b0; }
     .chip.gpu { border-color: #3d689f; color: #b9d9ff; }
     .stats-error { color: #ffb0b0; font-size: 0.9rem; margin-top: 0.5rem; }
+    .control-btn {
+      padding: 0.55rem 1rem;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      font-weight: 600;
+      cursor: pointer;
+      font-size: 0.9rem;
+    }
+    .control-btn.running {
+      background: #2d5a3d;
+      color: #9dffc8;
+      border-color: #3d8f67;
+    }
+    .control-btn.stopped {
+      background: #5a2d2d;
+      color: #ffb0b0;
+      border-color: #7a3b3b;
+    }
+    .control-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .activity-panel {
+      position: relative;
+      padding-bottom: 1.15rem;
+    }
+    .activity-log {
+      flex: 1;
+      min-height: 0;
+      overflow-y: auto;
+      overflow-x: hidden;
+      margin-top: 0.65rem;
+      margin-right: -0.15rem;
+      padding-right: 0.35rem;
+      font-size: 0.82rem;
+      line-height: 1.45;
+      scroll-behavior: smooth;
+      overscroll-behavior: contain;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(154, 167, 184, 0.42) transparent;
+    }
+    .activity-log::-webkit-scrollbar {
+      width: 5px;
+    }
+    .activity-log::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    .activity-log::-webkit-scrollbar-thumb {
+      background: rgba(154, 167, 184, 0.38);
+      border-radius: 999px;
+    }
+    .activity-log::-webkit-scrollbar-thumb:hover {
+      background: rgba(154, 167, 184, 0.62);
+    }
+    .activity-entry {
+      padding: 0.45rem 0.4rem;
+      border-bottom: 1px solid rgba(43, 58, 79, 0.55);
+      display: flex;
+      flex-direction: column;
+      gap: 0.15rem;
+    }
+    .activity-entry:last-child { border-bottom: 0; }
+    .activity-time { color: var(--muted); font-variant-numeric: tabular-nums; margin-right: 0.45rem; }
+    .activity-worker {
+      font-weight: 600;
+      text-transform: uppercase;
+      font-size: 0.75rem;
+      letter-spacing: 0.04em;
+    }
+    .activity-worker.enhance { color: #9dffc8; }
+    .activity-worker.ocr { color: #b9d9ff; }
+    .activity-worker.watch { color: #d4b5ff; }
+    .activity-worker.system { color: #ffe08a; }
+    .activity-worker.debug { color: var(--muted); }
+    .activity-entry.debug .activity-msg {
+      color: var(--muted);
+      font-style: italic;
+    }
+    .activity-msg { color: #d5deea; word-break: break-word; }
+    .activity-empty { color: var(--muted); padding: 1rem 0; text-align: center; }
+    @media (max-width: 1100px) {
+      .page-layout {
+        flex-direction: column;
+      }
+      .stats-sidebar,
+      .activity-sidebar,
+      .main-col {
+        position: static;
+        width: 100%;
+        max-width: none;
+        max-height: none;
+        height: auto;
+      }
+      .stats-sidebar { max-height: 24rem; }
+      .activity-sidebar { max-height: 20rem; }
+      .main-col { overflow: visible; padding: 0; }
+      .col-resizer { display: none; }
+      .stats-sidebar .stats-grid {
+        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      }
+      .stats-sidebar .stats-head {
+        flex-direction: row;
+        align-items: center;
+      }
+      .stats-sidebar .control-btn { width: auto; }
+    }
     @media (max-width: 700px) {
       .result { grid-template-columns: 1fr; }
       .thumb { max-height: 220px; }
+      .stats-head { flex-direction: column; align-items: flex-start; gap: 0.5rem; }
     }
   </style>
 </head>
 <body>
-  <div class="wrap">
+  <div class="page-layout">
+  <aside class="stats-sidebar" id="stats-sidebar">
+    <section class="stats-panel" id="stats-panel">
+      <div class="stats-head">
+        <h2><span class="live-dot"></span>Live pipeline stats</h2>
+        <div style="display:flex;align-items:center;gap:0.75rem;width:100%;">
+          <button type="button" class="control-btn running" id="control-btn" disabled>
+            Processing...
+          </button>
+          <span class="stat-sub" id="stats-updated">Updating...</span>
+        </div>
+      </div>
+      <div class="stats-grid">
+        <div class="stat-card speedometer-card">
+          <div class="stat-label">OCR speed</div>
+          <div class="speedometer" aria-live="polite">
+            <svg viewBox="0 0 200 110" class="speedometer-svg" role="img" aria-label="OCR throughput gauge">
+              <defs>
+                <linearGradient id="speedometerGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                  <stop offset="0%" stop-color="#4da3ff"/>
+                  <stop offset="55%" stop-color="#7dffb2"/>
+                  <stop offset="100%" stop-color="#ffe08a"/>
+                </linearGradient>
+              </defs>
+              <path class="speedometer-arc-bg" d="M 24 95 A 76 76 0 0 1 176 95"/>
+              <path class="speedometer-arc-fill" id="speedometer-arc-fill" d="M 24 95 A 76 76 0 0 1 176 95"/>
+              <g id="speedometer-ticks"></g>
+              <line class="speedometer-needle" id="speedometer-needle" x1="100" y1="95" x2="100" y2="34"/>
+              <circle class="speedometer-hub" cx="100" cy="95" r="5"/>
+            </svg>
+          </div>
+          <div class="speedometer-readout">
+            <span class="speedometer-value" id="speedometer-value">0</span>
+            <span class="speedometer-unit">images / min</span>
+          </div>
+          <div class="speedometer-scale">
+            <span>0</span>
+            <span id="speedometer-max">10</span>
+          </div>
+          <div class="stat-sub" id="speedometer-sub">5 min average: 0</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Inbox</div>
+          <div class="stat-value" id="stat-inbox">-</div>
+          <div class="stat-sub">waiting files</div>
+        </div>
+        <div class="stat-card" id="stat-watch-card" hidden>
+          <div class="stat-label" id="stat-watch-label">Watch folder</div>
+          <div class="stat-value" id="stat-watch-pending">-</div>
+          <div class="stat-sub" id="stat-watch-sub">eligible since scan start</div>
+          <button type="button" class="watch-scan-btn" id="watch-scan-btn">Scan folder</button>
+          <div class="watch-scan-result" id="watch-scan-result" hidden></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">OCR queue</div>
+          <div class="stat-value" id="stat-queue">-</div>
+          <div class="stat-sub" id="stat-queue-sub">pending OCR jobs</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Time to complete</div>
+          <div class="stat-value time-eta" id="stat-eta">--:--:--</div>
+          <div class="stat-sub" id="stat-eta-sub">at current speed</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Indexed</div>
+          <div class="stat-value" id="stat-indexed">-</div>
+          <div class="stat-sub" id="stat-indexed-sub">images in database</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Duplicates</div>
+          <div class="stat-value" id="stat-duplicates">-</div>
+          <div class="stat-sub">skipped (last 1h)</div>
+        </div>
+      </div>
+      <div class="stat-label">Workers</div>
+      <div class="worker-row" id="worker-chips"></div>
+      <div class="stat-label" style="margin-top:0.65rem">GPU</div>
+      <div class="gpu-row" id="gpu-chips"></div>
+      <div class="proc-row" id="proc-chips"></div>
+      <div class="stats-error" id="stats-error" hidden></div>
+    </section>
+  </aside>
+
+  <div class="col-resizer" id="resizer-left" aria-label="Resize stats and search panels" role="separator"></div>
+
+  <main class="main-col" id="main-col">
     <nav>
       <a href="/">Search</a>
       <a href="/settings">Settings</a>
@@ -208,48 +624,8 @@
       </div>
     {% endif %}
 
-    <section class="stats-panel" id="stats-panel">
-      <div class="stats-head">
-        <h2><span class="live-dot"></span>Live pipeline stats</h2>
-        <span class="stat-sub" id="stats-updated">Updating...</span>
-      </div>
-      <div class="stats-grid">
-        <div class="stat-card">
-          <div class="stat-label">Inbox</div>
-          <div class="stat-value" id="stat-inbox">-</div>
-          <div class="stat-sub">waiting files</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-label">OCR queue</div>
-          <div class="stat-value" id="stat-queue">-</div>
-          <div class="stat-sub">pending jobs</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-label">Processed</div>
-          <div class="stat-value" id="stat-rate-1m">-</div>
-          <div class="stat-sub">items / min (last 1m)</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-label">Processed</div>
-          <div class="stat-value" id="stat-rate-5m">-</div>
-          <div class="stat-sub">items / min (last 5m)</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-label">Duplicates</div>
-          <div class="stat-value" id="stat-duplicates">-</div>
-          <div class="stat-sub">skipped (last 1h)</div>
-        </div>
-      </div>
-      <div class="stat-label">Workers</div>
-      <div class="worker-row" id="worker-chips"></div>
-      <div class="stat-label" style="margin-top:0.65rem">GPU</div>
-      <div class="gpu-row" id="gpu-chips"></div>
-      <div class="proc-row" id="proc-chips"></div>
-      <div class="stats-error" id="stats-error" hidden></div>
-    </section>
-
     <form method="get" action="/">
-      <input type="search" name="q" value="{{ query }}" placeholder="Search filenames and extracted text..." autofocus>
+      <input type="search" name="q" value="{{ query }}" placeholder='Search words (any match) or "exact phrase"...' autofocus>
       <button type="submit">Search</button>
     </form>
 
@@ -258,17 +634,25 @@
     {% endif %}
 
     {% if results %}
+      <div class="result-actions">
+        <button type="button" class="action-btn" id="copy-all-btn">Copy all text</button>
+        <button type="button" class="action-btn" id="export-pdf-btn">Export to PDF</button>
+        <span class="action-status" id="export-status"></span>
+      </div>
       {% for item in results %}
-        <article class="result">
+        <article class="result" data-doc-id="{{ item.document.id }}">
           <a href="/images/{{ item.document.id }}" target="_blank" rel="noopener">
             <img class="thumb" src="/images/{{ item.document.id }}" alt="{{ item.document.original_name }}">
           </a>
           <div>
             <div class="title">
-              {{ item.document.original_name }}
-              {% if item.document.page_number > 1 %}
-                <span>— page {{ item.document.page_number }}</span>
-              {% endif %}
+              <span class="title-text">
+                {{ item.document.original_name }}
+                {% if item.document.page_number > 1 %}
+                  <span>— page {{ item.document.page_number }}</span>
+                {% endif %}
+              </span>
+              <button type="button" class="delete-btn" data-doc-id="{{ item.document.id }}">Delete</button>
             </div>
             <div class="ocr-text">{{ item.snippet | safe }}</div>
           </div>
@@ -279,37 +663,384 @@
     {% else %}
       <div class="empty">Enter a search term to find archived documents.</div>
     {% endif %}
+  </main>
+
+  <div class="col-resizer" id="resizer-right" aria-label="Resize search and activity panels" role="separator"></div>
+
+  <aside class="activity-sidebar" id="activity-sidebar">
+    <section class="activity-panel" id="activity-panel">
+      <div class="stats-head">
+        <h2>Activity log</h2>
+        <span class="stat-sub" id="activity-updated">Updating...</span>
+      </div>
+      <div class="activity-log" id="activity-log">
+        <div class="activity-empty">Waiting for activity...</div>
+      </div>
+    </section>
+  </aside>
   </div>
   <script>
     function workerChip(name, data) {
       const alive = data && data.alive;
       const state = (data && data.state) || "offline";
-      const cls = !alive ? "off" : (state === "processing" ? "busy" : "ok");
+      let cls = !alive ? "off" : "ok";
+      if (alive && state === "processing") cls = "busy";
+      if (alive && state === "paused") cls = "off";
       let text = `${name}: ${alive ? state : "offline"}`;
       if (alive && data.file) text += ` (${data.file})`;
       return `<span class="chip ${cls}">${text}</span>`;
     }
 
+    let processingEnabled = true;
+    let controlBusy = false;
+
+    function renderControlButton(configured, enabled) {
+      const btn = document.getElementById("control-btn");
+      if (!configured) {
+        btn.disabled = true;
+        btn.textContent = "Configure paths first";
+        btn.className = "control-btn stopped";
+        return;
+      }
+      btn.disabled = controlBusy;
+      processingEnabled = enabled;
+      if (enabled) {
+        btn.textContent = "Stop processing";
+        btn.className = "control-btn running";
+      } else {
+        btn.textContent = "Start processing";
+        btn.className = "control-btn stopped";
+      }
+    }
+
+    async function toggleProcessing() {
+      if (controlBusy) return;
+      controlBusy = true;
+      renderControlButton(true, processingEnabled);
+      try {
+        const res = await fetch("/api/control", {
+          method: "POST",
+          headers: {"Content-Type": "application/json"},
+          body: JSON.stringify({processing_enabled: !processingEnabled}),
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        renderControlButton(data.configured, data.processing_enabled);
+        refreshActivity();
+      } catch (e) {
+        const err = document.getElementById("stats-error");
+        err.hidden = false;
+        err.textContent = `Control update failed: ${e.message}`;
+      } finally {
+        controlBusy = false;
+        renderControlButton(true, processingEnabled);
+      }
+    }
+
+    document.getElementById("control-btn").addEventListener("click", toggleProcessing);
+
+    async function scanWatchFolder() {
+      const btn = document.getElementById("watch-scan-btn");
+      const result = document.getElementById("watch-scan-result");
+      btn.disabled = true;
+      result.hidden = false;
+      result.textContent = "Starting scan…";
+      try {
+        const res = await fetch("/api/watch/scan", { method: "POST" });
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.detail || `HTTP ${res.status}`);
+        }
+        document.getElementById("stat-watch-pending").textContent = data.pending ?? 0;
+        document.getElementById("stat-watch-sub").textContent = data.started
+          ? "processing since watermark"
+          : (data.available ? "nothing new to process" : "folder unavailable");
+        result.textContent = data.message || "Scan requested.";
+        refreshActivity();
+        if (data.started) {
+          setTimeout(refreshStats, 3000);
+          setTimeout(refreshActivity, 3000);
+        }
+      } catch (e) {
+        result.textContent = `Scan failed: ${e.message}`;
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    document.getElementById("watch-scan-btn").addEventListener("click", scanWatchFolder);
+
+    function formatActivityTime(ts) {
+      try {
+        return new Date(ts).toLocaleTimeString();
+      } catch (_) {
+        return ts || "";
+      }
+    }
+
+    let lastActivityKeys = [];
+
+    function activityEntryKey(entry) {
+      return `${entry.ts}|${entry.worker}|${entry.action}|${entry.message}`;
+    }
+
+    function activityEntryHtml(entry) {
+      const worker = (entry.worker || "system").toLowerCase();
+      const action = (entry.action || "").toLowerCase();
+      const debugCls = action === "debug" ? " debug" : "";
+      return `<div class="activity-entry${debugCls}">
+          <div>
+            <span class="activity-time">${formatActivityTime(entry.ts)}</span>
+            <span class="activity-worker ${worker}${debugCls}">${worker}</span>
+          </div>
+          <span class="activity-msg">${entry.message || ""}</span>
+        </div>`;
+    }
+
+    function activityLogNearBottom(log, threshold = 48) {
+      return log.scrollHeight - log.scrollTop - log.clientHeight <= threshold;
+    }
+
+    function activitySlideCount(prevKeys, nextKeys) {
+      for (let drop = 0; drop <= prevKeys.length; drop++) {
+        const prevSuffix = prevKeys.slice(drop);
+        if (!prevSuffix.length) {
+          return drop;
+        }
+        let matches = true;
+        for (let i = 0; i < prevSuffix.length; i++) {
+          if (prevSuffix[i] !== nextKeys[i]) {
+            matches = false;
+            break;
+          }
+        }
+        if (matches) {
+          return drop;
+        }
+      }
+      return -1;
+    }
+
+    function scrollActivityLogToBottom(log, smooth = true) {
+      const top = log.scrollHeight;
+      if (smooth && "scrollTo" in log) {
+        log.scrollTo({ top, behavior: "smooth" });
+      } else {
+        log.scrollTop = top;
+      }
+    }
+
+    function renderActivity(entries) {
+      const log = document.getElementById("activity-log");
+      if (!entries || !entries.length) {
+        log.innerHTML = '<div class="activity-empty">No activity yet.</div>';
+        lastActivityKeys = [];
+        return;
+      }
+
+      const keys = entries.map(activityEntryKey);
+      if (keys.join("\n") === lastActivityKeys.join("\n")) {
+        return;
+      }
+
+      const stickToBottom = activityLogNearBottom(log);
+      log.querySelector(".activity-empty")?.remove();
+
+      if (!lastActivityKeys.length) {
+        log.innerHTML = entries.map(activityEntryHtml).join("");
+      } else {
+        const slide = activitySlideCount(lastActivityKeys, keys);
+        if (slide >= 0) {
+          for (let i = 0; i < slide; i++) {
+            log.firstElementChild?.remove();
+          }
+          const added = entries.slice(lastActivityKeys.length - slide);
+          if (added.length) {
+            log.insertAdjacentHTML("beforeend", added.map(activityEntryHtml).join(""));
+          }
+        } else {
+          log.innerHTML = entries.map(activityEntryHtml).join("");
+        }
+      }
+
+      lastActivityKeys = keys;
+
+      if (stickToBottom) {
+        requestAnimationFrame(() => scrollActivityLogToBottom(log, true));
+      }
+    }
+
+    async function refreshControl() {
+      try {
+        const res = await fetch("/api/control");
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        renderControlButton(data.configured, data.processing_enabled);
+      } catch (_) {
+        renderControlButton(false, false);
+      }
+    }
+
+    async function refreshActivity() {
+      try {
+        const res = await fetch("/api/activity?limit=150");
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        renderActivity(data.entries);
+        const updated = document.getElementById("activity-updated");
+        if (data.entries && data.entries.length) {
+          const latest = data.entries[data.entries.length - 1];
+          updated.textContent = `Updated ${formatActivityTime(latest.ts)}`;
+        } else {
+          updated.textContent = "No entries";
+        }
+      } catch (e) {
+        document.getElementById("activity-log").innerHTML =
+          `<div class="activity-empty">Activity log unavailable: ${e.message}</div>`;
+      }
+    }
+
+    const speedometerArc = document.getElementById("speedometer-arc-fill");
+    const speedometerNeedle = document.getElementById("speedometer-needle");
+    const speedometerArcLength = speedometerArc ? speedometerArc.getTotalLength() : 0;
+
+    (function initSpeedometerTicks() {
+      const tickGroup = document.getElementById("speedometer-ticks");
+      if (!tickGroup) return;
+      const cx = 100;
+      const cy = 95;
+      const outer = 76;
+      const inner = 66;
+      for (let i = 0; i <= 10; i++) {
+        const angle = Math.PI + (i / 10) * Math.PI;
+        const x1 = cx + Math.cos(angle) * inner;
+        const y1 = cy + Math.sin(angle) * inner;
+        const x2 = cx + Math.cos(angle) * outer;
+        const y2 = cy + Math.sin(angle) * outer;
+        const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+        line.setAttribute("x1", String(x1));
+        line.setAttribute("y1", String(y1));
+        line.setAttribute("x2", String(x2));
+        line.setAttribute("y2", String(y2));
+        line.setAttribute("class", "speedometer-tick");
+        tickGroup.appendChild(line);
+      }
+    })();
+
+    function gaugeMaxForRate(rate) {
+      const rounded = Math.ceil(Math.max(rate, 1) * 1.25);
+      return Math.max(10, Math.ceil(rounded / 5) * 5);
+    }
+
+    function renderCompletionEta(completion) {
+      const etaEl = document.getElementById("stat-eta");
+      const subEl = document.getElementById("stat-eta-sub");
+      const info = completion || {};
+      etaEl.textContent = info.eta_hms || "--:--:--";
+
+      const ocrPending = Number(info.ocr_pending) || 0;
+      const importPending = Number(info.import_pending) || 0;
+      const totalPending = ocrPending + importPending;
+
+      if (totalPending <= 0) {
+        subEl.textContent = "queue empty";
+        return;
+      }
+      if (info.processing_enabled === false) {
+        subEl.textContent = "processing paused";
+        return;
+      }
+      if (info.eta_seconds == null) {
+        subEl.textContent = "waiting for OCR speed";
+        return;
+      }
+
+      const parts = [];
+      if (importPending > 0) {
+        parts.push(`${importPending} to import`);
+      }
+      if (ocrPending > 0) {
+        parts.push(`${ocrPending} in OCR queue`);
+      }
+      subEl.textContent = parts.join(" · ");
+    }
+
+    function renderOcrSpeedometer(rate1m, rate5m) {
+      const value = Number(rate1m) || 0;
+      const avg5m = Number(rate5m) || 0;
+      const max = gaugeMaxForRate(Math.max(value, avg5m));
+      const ratio = Math.max(0, Math.min(1, value / max));
+      const angle = -90 + ratio * 180;
+
+      document.getElementById("speedometer-value").textContent = value.toFixed(1);
+      document.getElementById("speedometer-max").textContent = String(max);
+      document.getElementById("speedometer-sub").textContent =
+        `5 min average: ${avg5m.toFixed(1)} images / min`;
+
+      if (speedometerArc && speedometerArcLength > 0) {
+        speedometerArc.style.strokeDasharray = String(speedometerArcLength);
+        speedometerArc.style.strokeDashoffset = String(speedometerArcLength * (1 - ratio));
+      }
+      if (speedometerNeedle) {
+        speedometerNeedle.style.transform = `rotate(${angle}deg)`;
+      }
+    }
+
     function renderStats(data) {
       const err = document.getElementById("stats-error");
+      const watchCard = document.getElementById("stat-watch-card");
       if (!data.configured) {
+        renderOcrSpeedometer(0, 0);
+        renderCompletionEta(null);
         document.getElementById("stat-inbox").textContent = "-";
         document.getElementById("stat-queue").textContent = "-";
-        document.getElementById("stat-rate-1m").textContent = "-";
-        document.getElementById("stat-rate-5m").textContent = "-";
+        document.getElementById("stat-indexed").textContent = "-";
+        document.getElementById("stat-indexed-sub").textContent = "images in database";
+        watchCard.hidden = true;
         document.getElementById("worker-chips").innerHTML =
           '<span class="chip off">configure paths in settings</span>';
       } else {
         document.getElementById("stat-inbox").textContent = data.queues.inbox;
-        document.getElementById("stat-queue").textContent = data.queues.transformed_pending;
-        document.getElementById("stat-rate-1m").textContent = data.rates.ocr_per_minute_1m;
-        document.getElementById("stat-rate-5m").textContent = data.rates.ocr_per_minute_5m;
+        const ocrPending = data.queues.transformed_pending;
+        const watchOcrPending = data.queues.watch_ocr_pending ?? 0;
+        document.getElementById("stat-queue").textContent = ocrPending;
+        const queueSub = document.getElementById("stat-queue-sub");
+        queueSub.textContent = watchOcrPending > 0 && watchOcrPending !== ocrPending
+          ? `${watchOcrPending} from watch folder`
+          : "pending OCR jobs";
+        const dbStats = data.database || {};
+        const indexed = dbStats.indexed_documents ?? 0;
+        const sources = dbStats.indexed_sources ?? 0;
+        document.getElementById("stat-indexed").textContent = indexed;
+        document.getElementById("stat-indexed-sub").textContent =
+          indexed === sources
+            ? "images in database"
+            : `${sources} source file${sources === 1 ? "" : "s"} · ${indexed} page${indexed === 1 ? "" : "s"}`;
+        renderOcrSpeedometer(
+          data.rates.ocr_per_minute_1m,
+          data.rates.ocr_per_minute_5m
+        );
+        renderCompletionEta(data.completion);
         document.getElementById("stat-duplicates").textContent =
           (data.totals && data.totals.duplicate_skipped_1h) || 0;
+        const watch = data.watch || {};
+        if (watch.configured) {
+          watchCard.hidden = false;
+          document.getElementById("stat-watch-label").textContent = watch.folder_name || "Watch folder";
+          document.getElementById("stat-watch-pending").textContent = watch.pending ?? 0;
+          document.getElementById("stat-watch-sub").textContent = watch.available
+            ? ((watch.ocr_pending ?? 0) > 0
+              ? `${watch.ocr_pending} queued for OCR`
+              : "eligible since scan start")
+            : "folder unavailable";
+        } else {
+          watchCard.hidden = true;
+        }
         const workers = data.workers || {};
         document.getElementById("worker-chips").innerHTML =
           workerChip("enhance", workers.enhance) +
-          workerChip("ocr", workers.ocr);
+          workerChip("ocr", workers.ocr) +
+          workerChip("watch", workers.watch);
         err.hidden = true;
       }
 
@@ -350,8 +1081,208 @@
       }
     }
 
+    async function deleteDocument(docId, button) {
+      const article = button.closest(".result");
+      button.disabled = true;
+      try {
+        const res = await fetch(`/api/documents/${docId}`, { method: "DELETE" });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error(data.detail || `HTTP ${res.status}`);
+        }
+        if (article) {
+          const parent = article.parentElement;
+          article.remove();
+          const meta = document.querySelector(".meta");
+          if (meta) {
+            const remaining = document.querySelectorAll(".result").length;
+            const query = {{ query | tojson }};
+            meta.textContent = `${remaining} result${remaining === 1 ? "" : "s"} for "${query}"`;
+            if (remaining === 0 && parent) {
+              const empty = document.createElement("div");
+              empty.className = "empty";
+              empty.textContent = "No matches found.";
+              parent.appendChild(empty);
+            }
+          }
+        }
+      } catch (e) {
+        button.disabled = false;
+        alert(`Delete failed: ${e.message}`);
+      }
+    }
+
+    document.querySelectorAll(".delete-btn").forEach(button => {
+      button.addEventListener("click", () => {
+        const docId = button.dataset.docId;
+        if (docId) deleteDocument(docId, button);
+      });
+    });
+
+    const searchQuery = {{ query | tojson }};
+
+    async function fetchExportText() {
+      const res = await fetch(`/api/export/text?q=${encodeURIComponent(searchQuery)}`);
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.detail || `HTTP ${res.status}`);
+      }
+      return res.json();
+    }
+
+    function setExportStatus(message) {
+      const el = document.getElementById("export-status");
+      if (el) el.textContent = message || "";
+    }
+
+    const copyAllBtn = document.getElementById("copy-all-btn");
+    if (copyAllBtn && searchQuery) {
+      copyAllBtn.addEventListener("click", async () => {
+        copyAllBtn.disabled = true;
+        setExportStatus("Preparing text...");
+        try {
+          const data = await fetchExportText();
+          await navigator.clipboard.writeText(data.text);
+          const suffix = data.truncated ? " (first 500 documents)" : "";
+          setExportStatus(`Copied ${data.count} document${data.count === 1 ? "" : "s"}${suffix}`);
+        } catch (e) {
+          setExportStatus("");
+          alert(`Copy failed: ${e.message}`);
+        } finally {
+          copyAllBtn.disabled = false;
+        }
+      });
+    }
+
+    const exportPdfBtn = document.getElementById("export-pdf-btn");
+    if (exportPdfBtn && searchQuery) {
+      exportPdfBtn.addEventListener("click", async () => {
+        exportPdfBtn.disabled = true;
+        setExportStatus("Generating PDF...");
+        try {
+          const res = await fetch("/api/export/pdf", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({query: searchQuery}),
+          });
+          if (!res.ok) {
+            const data = await res.json().catch(() => ({}));
+            throw new Error(data.detail || `HTTP ${res.status}`);
+          }
+          const data = await res.json();
+          const link = document.createElement("a");
+          link.href = data.download_url;
+          link.download = data.filename;
+          link.click();
+          const suffix = data.truncated ? " (first 500 documents)" : "";
+          setExportStatus(
+            `Saved ${data.filename} to Exports — ${data.count} document${data.count === 1 ? "" : "s"}${suffix}`
+          );
+        } catch (e) {
+          setExportStatus("");
+          alert(`Export failed: ${e.message}`);
+        } finally {
+          exportPdfBtn.disabled = false;
+        }
+      });
+    }
+
+    (function initColumnResizers() {
+      const stats = document.getElementById("stats-sidebar");
+      const activity = document.getElementById("activity-sidebar");
+      const main = document.getElementById("main-col");
+      const resizerLeft = document.getElementById("resizer-left");
+      const resizerRight = document.getElementById("resizer-right");
+      if (!stats || !activity || !main || !resizerLeft || !resizerRight) return;
+
+      const storageKey = "packetpro-column-widths";
+      const minStats = 176;
+      const minActivity = 176;
+      const minMain = 224;
+
+      const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
+
+      function maxStatsWidth() {
+        return Math.min(window.innerWidth * 0.4, window.innerWidth - minMain - minActivity - 40);
+      }
+
+      function maxActivityWidth() {
+        return Math.min(window.innerWidth * 0.4, window.innerWidth - minMain - minStats - 40);
+      }
+
+      function applySavedWidths() {
+        try {
+          const saved = JSON.parse(localStorage.getItem(storageKey) || "null");
+          if (saved?.stats) {
+            stats.style.width = `${clamp(saved.stats, minStats, maxStatsWidth())}px`;
+          }
+          if (saved?.activity) {
+            activity.style.width = `${clamp(saved.activity, minActivity, maxActivityWidth())}px`;
+          }
+        } catch (_) {}
+      }
+
+      let saveTimer = null;
+      function persistWidths() {
+        clearTimeout(saveTimer);
+        saveTimer = setTimeout(() => {
+          localStorage.setItem(storageKey, JSON.stringify({
+            stats: stats.offsetWidth,
+            activity: activity.offsetWidth,
+          }));
+        }, 200);
+      }
+
+      function startResize(resizer, panel, direction, event) {
+        resizer.classList.add("dragging");
+        document.body.style.cursor = "col-resize";
+        document.body.style.userSelect = "none";
+        const startX = event.clientX;
+        const startWidth = panel.offsetWidth;
+
+        function onMove(ev) {
+          const delta = ev.clientX - startX;
+          const raw = direction === "left" ? startWidth + delta : startWidth - delta;
+          const max = direction === "left" ? maxStatsWidth() : maxActivityWidth();
+          const min = direction === "left" ? minStats : minActivity;
+          panel.style.width = `${clamp(raw, min, max)}px`;
+        }
+
+        function onUp() {
+          resizer.classList.remove("dragging");
+          document.body.style.cursor = "";
+          document.body.style.userSelect = "";
+          document.removeEventListener("mousemove", onMove);
+          document.removeEventListener("mouseup", onUp);
+          persistWidths();
+        }
+
+        document.addEventListener("mousemove", onMove);
+        document.addEventListener("mouseup", onUp);
+      }
+
+      resizerLeft.addEventListener("mousedown", (event) => {
+        event.preventDefault();
+        startResize(resizerLeft, stats, "left", event);
+      });
+      resizerRight.addEventListener("mousedown", (event) => {
+        event.preventDefault();
+        startResize(resizerRight, activity, "right", event);
+      });
+
+      applySavedWidths();
+      window.addEventListener("resize", () => {
+        stats.style.width = `${clamp(stats.offsetWidth, minStats, maxStatsWidth())}px`;
+        activity.style.width = `${clamp(activity.offsetWidth, minActivity, maxActivityWidth())}px`;
+        persistWidths();
+      });
+    })();
+
+    refreshControl();
     refreshStats();
-    setInterval(refreshStats, 2000);
+    refreshActivity();
+    setInterval(() => { refreshStats(); refreshControl(); }, 2000);
+    setInterval(refreshActivity, 2000);
   </script>
 </body>
 </html>

@@ -4,8 +4,11 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import shutil
+import threading
 import time
+import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -21,6 +24,18 @@ def file_identity_hash(path: Path) -> str:
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
+def watch_file_identity_hash(path: Path) -> str:
+    """Legacy path-based identity; prefer file_content_hash for watch deduplication."""
+    stat = path.stat()
+    payload = f"{path.resolve()}:{stat.st_size}:{int(stat.st_mtime)}"
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
+def file_content_hash(path: Path) -> str:
+    """SHA-256 of file bytes — used to skip duplicate watch-folder images."""
+    return file_sha256(path)
+
+
 def file_sha256(path: Path, chunk_size: int = 1024 * 1024) -> str:
     digest = hashlib.sha256()
     with path.open("rb") as fh:
@@ -30,6 +45,15 @@ def file_sha256(path: Path, chunk_size: int = 1024 * 1024) -> str:
                 break
             digest.update(chunk)
     return digest.hexdigest()
+
+
+def file_settling_unnecessary(path: Path, *, min_age_seconds: float = 60.0) -> bool:
+    """Skip copy-settle waits for files that have not changed recently."""
+    try:
+        stat = path.stat()
+    except OSError:
+        return False
+    return stat.st_size > 0 and (time.time() - stat.st_mtime) >= min_age_seconds
 
 
 def wait_for_stable_file(path: Path, settle_seconds: float, poll_interval: float) -> bool:
@@ -55,13 +79,40 @@ def wait_for_stable_file(path: Path, settle_seconds: float, poll_interval: float
     return False
 
 
-def write_json(path: Path, payload: dict[str, Any]) -> None:
+def ensure_stable_file(
+    path: Path,
+    *,
+    settle_seconds: float,
+    poll_interval: float,
+    min_age_seconds: float = 60.0,
+) -> bool:
+    if not path.exists():
+        return False
+    if file_settling_unnecessary(path, min_age_seconds=min_age_seconds):
+        try:
+            return path.stat().st_size > 0
+        except OSError:
+            return False
+    return wait_for_stable_file(path, settle_seconds, poll_interval)
+
+
+def _unique_tmp_path(path: Path) -> Path:
+    token = f"{os.getpid()}.{threading.get_ident()}.{uuid.uuid4().hex[:8]}"
+    return path.with_name(f".{path.name}.{token}.tmp")
+
+
+def atomic_write_text(path: Path, content: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = path.with_suffix(path.suffix + ".tmp")
-    with tmp.open("w", encoding="utf-8") as fh:
-        json.dump(payload, fh, indent=2)
-        fh.write("\n")
-    tmp.replace(path)
+    tmp = _unique_tmp_path(path)
+    try:
+        tmp.write_text(content, encoding="utf-8")
+        tmp.replace(path)
+    finally:
+        tmp.unlink(missing_ok=True)
+
+
+def write_json(path: Path, payload: dict[str, Any]) -> None:
+    atomic_write_text(path, json.dumps(payload, indent=2) + "\n")
 
 
 def read_json(path: Path) -> dict[str, Any]:

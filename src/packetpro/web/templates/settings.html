@@ -24,7 +24,12 @@
       color: var(--text);
       min-height: 100vh;
     }
-    .wrap { max-width: 760px; margin: 0 auto; padding: 2rem 1.25rem 3rem; }
+    .wrap {
+      width: 100%;
+      max-width: min(1100px, 100%);
+      margin: 0 auto;
+      padding: 1.25rem clamp(0.5rem, 1vw, 0.85rem) 2rem;
+    }
     nav { margin-bottom: 1.5rem; }
     nav a { color: var(--accent); text-decoration: none; margin-right: 1rem; }
     h1 { margin: 0 0 0.35rem; }
@@ -41,7 +46,8 @@
       margin: 1rem 0 0.35rem;
       font-weight: 600;
     }
-    input {
+    input,
+    select {
       width: 100%;
       padding: 0.75rem 0.9rem;
       border-radius: 8px;
@@ -50,7 +56,81 @@
       color: var(--text);
       font-size: 1rem;
     }
+    select { cursor: pointer; }
+    .input-wrap {
+      display: flex;
+      align-items: center;
+      gap: 0.65rem;
+    }
+    .input-wrap input { flex: 1; min-width: 0; }
+    .input-wrap input.watch-ok { border-color: rgba(125, 255, 178, 0.55); }
+    .input-wrap input.watch-bad { border-color: rgba(255, 143, 143, 0.55); }
+    .watch-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 0.85rem;
+      font-weight: 600;
+      white-space: nowrap;
+      flex-shrink: 0;
+      min-width: 6.5rem;
+    }
+    .watch-status.hidden { visibility: hidden; }
+    .watch-dot {
+      width: 0.65rem;
+      height: 0.65rem;
+      border-radius: 50%;
+      background: var(--muted);
+      flex-shrink: 0;
+    }
+    .watch-status.ok { color: var(--ok); }
+    .watch-status.ok .watch-dot {
+      background: var(--ok);
+      box-shadow: 0 0 8px rgba(125, 255, 178, 0.65);
+    }
+    .watch-status.bad { color: var(--err); }
+    .watch-status.bad .watch-dot { background: var(--err); }
+    .watch-status.checking { color: var(--muted); }
+    .watch-status.checking .watch-dot { background: var(--muted); }
     .hint { color: var(--muted); font-size: 0.9rem; margin-top: 0.25rem; }
+    .toggle-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.75rem;
+      margin-top: 1.25rem;
+      padding: 1rem;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: rgba(15, 20, 28, 0.45);
+    }
+    .toggle-row input[type="checkbox"] {
+      width: 1.1rem;
+      height: 1.1rem;
+      margin-top: 0.15rem;
+      accent-color: var(--accent);
+      flex-shrink: 0;
+    }
+    .toggle-copy { flex: 1; min-width: 0; }
+    .toggle-copy strong { display: block; margin-bottom: 0.25rem; }
+    .gpu-status-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-top: 0.65rem;
+    }
+    .gpu-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.35rem 0.6rem;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      font-size: 0.82rem;
+      font-weight: 600;
+    }
+    .gpu-pill.ok { color: var(--ok); border-color: rgba(125, 255, 178, 0.35); }
+    .gpu-pill.bad { color: var(--err); border-color: rgba(255, 143, 143, 0.35); }
+    .gpu-pill.muted { color: var(--muted); }
     .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
     button {
       margin-top: 1.25rem;
@@ -62,6 +142,158 @@
       font-weight: 600;
       cursor: pointer;
     }
+    .watch-start-panel {
+      margin-top: 1rem;
+      padding: 1rem;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: rgba(15, 20, 28, 0.45);
+    }
+    .watch-start-panel.hidden { display: none; }
+    .watch-start-panel label { margin-top: 0; }
+    .watch-start-current {
+      margin-top: 0.5rem;
+      font-size: 0.92rem;
+      color: var(--text);
+    }
+    .watch-start-row {
+      display: flex;
+      gap: 0.65rem;
+      align-items: center;
+      margin-top: 0.75rem;
+      flex-wrap: wrap;
+    }
+    .watch-start-row input[type="datetime-local"] {
+      flex: 1 1 16rem;
+      min-width: 0;
+      margin-top: 0;
+    }
+    .secondary-btn,
+    .preset-btn {
+      margin-top: 0;
+      padding: 0.65rem 0.95rem;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .secondary-btn {
+      border: 1px solid var(--border);
+      background: rgba(77, 163, 255, 0.14);
+      color: var(--accent);
+    }
+    .secondary-btn:hover:not(:disabled),
+    .preset-btn:hover:not(:disabled) {
+      filter: brightness(1.08);
+    }
+    .secondary-btn:disabled,
+    .preset-btn:disabled {
+      opacity: 0.55;
+      cursor: wait;
+    }
+    .watch-start-presets {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-top: 0.75rem;
+    }
+    .preset-btn {
+      border: 1px solid var(--border);
+      background: rgba(26, 35, 50, 0.9);
+      color: var(--text);
+    }
+    .watch-start-result {
+      margin-top: 0.65rem;
+      font-size: 0.88rem;
+      color: var(--muted);
+      line-height: 1.4;
+    }
+    .watch-start-result.ok { color: var(--ok); }
+    .watch-start-result.bad { color: var(--err); }
+    .model-panel {
+      margin-top: 1.25rem;
+      padding: 1rem;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: rgba(15, 20, 28, 0.45);
+    }
+    .model-panel label { margin-top: 0; }
+    .model-panel label + label { margin-top: 1rem; }
+    .model-row {
+      display: flex;
+      gap: 0.65rem;
+      align-items: center;
+      margin-top: 0.75rem;
+      flex-wrap: wrap;
+    }
+    .model-row select {
+      flex: 1 1 16rem;
+      min-width: 0;
+      margin-top: 0;
+    }
+    .model-current {
+      margin-top: 0.5rem;
+      font-size: 0.92rem;
+      color: var(--text);
+    }
+    .model-result {
+      margin-top: 0.65rem;
+      font-size: 0.88rem;
+      color: var(--muted);
+      line-height: 1.4;
+    }
+    .model-result.ok { color: var(--ok); }
+    .model-result.bad { color: var(--err); }
+    .model-result.hidden,
+    .hidden { display: none; }
+    .engine-panel {
+      margin-top: 1.25rem;
+      padding: 1rem;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: rgba(15, 20, 28, 0.45);
+    }
+    .engine-panel label { margin-top: 0; }
+    .engine-row {
+      display: flex;
+      gap: 0.65rem;
+      flex-wrap: wrap;
+      margin-top: 0.75rem;
+    }
+    .engine-btn {
+      margin-top: 0;
+      padding: 0.7rem 1rem;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: rgba(26, 35, 50, 0.9);
+      color: var(--text);
+      font-size: 0.92rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .engine-btn.active {
+      border-color: rgba(125, 255, 178, 0.45);
+      background: rgba(125, 255, 178, 0.12);
+      color: var(--ok);
+    }
+    .engine-btn:disabled {
+      opacity: 0.55;
+      cursor: wait;
+    }
+    .engine-current {
+      margin-top: 0.5rem;
+      font-size: 0.92rem;
+      color: var(--text);
+    }
+    .engine-result {
+      margin-top: 0.65rem;
+      font-size: 0.88rem;
+      color: var(--muted);
+      line-height: 1.4;
+    }
+    .engine-result.ok { color: var(--ok); }
+    .engine-result.bad { color: var(--err); }
+    .engine-result.hidden { display: none; }
     .banner {
       margin-top: 1rem;
       padding: 0.85rem 1rem;
@@ -87,7 +319,7 @@
     </p>
 
     {% if saved %}
-      <div class="banner ok">Settings saved. Restart <code>packetpro-enhance</code> and <code>packetpro-ocr</code> if you changed folder locations.</div>
+      <div class="banner ok">Settings saved. Restart <code>packetpro-enhance</code>, <code>packetpro-ocr</code>, and <code>packetpro-watch</code> if you changed folder locations, watch folder, or GPU settings.</div>
     {% endif %}
     {% if error %}
       <div class="banner err">{{ error }}</div>
@@ -121,8 +353,557 @@
       <input id="database" name="database" value="{{ settings.database }}" required>
       <div class="hint">Filename inside the data root (for example <code>packetpro.db</code>).</div>
 
+      <label for="watch_folder">Watch folder</label>
+      <div class="input-wrap">
+        <input id="watch_folder" name="watch_folder" value="{{ settings.watch_folder }}" placeholder="/mnt/nas-backup/ScreenCaptures" autocomplete="off">
+        <span id="watch_status" class="watch-status hidden" aria-live="polite">
+          <span class="watch-dot"></span>
+          <span id="watch_status_text"></span>
+        </span>
+      </div>
+      <div class="hint">Optional absolute path on the NAS (or another mount). Only image files modified after the scan start date are processed. Leave blank to disable.</div>
+
+      <div class="watch-start-panel hidden" id="watch_start_panel">
+        <label for="watch_start_since">Scan start date</label>
+        <div class="hint">Files modified on or before this point are skipped. The watch worker picks up changes automatically — no restart needed.</div>
+        <div class="watch-start-current" id="watch_start_current">Loading current start date…</div>
+        <div class="watch-start-row">
+          <input type="datetime-local" id="watch_start_since">
+          <button type="button" class="secondary-btn" id="watch_start_apply">Set start date</button>
+        </div>
+        <div class="watch-start-presets">
+          <button type="button" class="preset-btn" data-days="7">Last 7 days</button>
+          <button type="button" class="preset-btn" data-days="30">Last 30 days</button>
+          <button type="button" class="preset-btn" data-days="90">Last 90 days</button>
+          <button type="button" class="preset-btn" data-all="1">All files</button>
+        </div>
+        <div class="watch-start-result hidden" id="watch_start_result"></div>
+      </div>
+
+      <div class="engine-panel" id="ocr_engine_panel">
+        <label><strong>OCR engine</strong></label>
+        <div class="hint">
+          Choose between Ollama vision models and local PaddleOCR.
+          PaddleOCR uses GPU1 by default (<code>paddle_gpu_id: 1</code> in config).
+          The OCR worker picks up engine changes within about 30 seconds.
+        </div>
+        <div class="engine-current" id="ocr_engine_current">
+          Current: <code>{{ settings.ocr.engine or settings.ocr_engine or 'ollama' }}</code>
+        </div>
+        <div class="engine-row">
+          <button type="button" class="engine-btn" id="use_ollama_btn">Use Ollama</button>
+          <button type="button" class="engine-btn" id="use_paddle_btn">Use PaddleOCR</button>
+        </div>
+        <div class="engine-result hidden" id="ocr_engine_result"></div>
+      </div>
+
+      <div class="toggle-row" id="dual_gpu_row">
+        <input type="checkbox" id="use_both_gpus" name="use_both_gpus" value="on" {% if settings.use_both_gpus %}checked{% endif %}>
+        <div class="toggle-copy">
+          <label for="use_both_gpus"><strong>Use both GPUs if available</strong></label>
+          <div class="hint">
+            Splits OCR across two Ollama instances: GPU1 on port 11434 and GPU0 on port 11435.
+            Stop Frigate and Chatterbox on GPU0 first, then run a second Ollama there
+            (see <code>docker/ollama-gpu0-compose.example.yaml</code>).
+          </div>
+          <div class="gpu-status-row" id="ocr_backend_status"></div>
+        </div>
+      </div>
+
+      <div class="model-panel" id="ocr_model_panel">
+        <label for="ocr_model"><strong>OCR model (GPU1)</strong></label>
+        <div class="hint">
+          Vision model used for OCR on the primary Ollama instance
+          (<code>{{ settings.ocr.primary_url }}</code>).
+          The OCR worker picks up model changes within about 30 seconds — no restart needed.
+        </div>
+        <div class="model-current" id="ocr_model_current">
+          Current: <code>{{ settings.ocr.primary_model }}</code>
+        </div>
+        <div class="model-row">
+          <select id="ocr_model" name="ocr_model" aria-label="Primary OCR model">
+            <option value="{{ settings.ocr.primary_model }}">{{ settings.ocr.primary_model }}</option>
+          </select>
+          <button type="button" class="secondary-btn" id="ocr_model_refresh">Refresh models</button>
+          <button type="button" class="secondary-btn" id="ocr_model_apply">Apply model</button>
+        </div>
+
+        <div id="secondary_model_section" class="{% if not settings.use_both_gpus %}hidden{% endif %}">
+          <label for="secondary_ocr_model"><strong>OCR model (GPU0)</strong></label>
+          <div class="hint">
+            Model on the secondary Ollama instance
+            (<code>{{ settings.ocr.secondary_url }}</code>).
+          </div>
+          <div class="model-current" id="secondary_ocr_model_current">
+            Current: <code>{{ settings.ocr.secondary_model }}</code>
+          </div>
+          <div class="model-row">
+            <select id="secondary_ocr_model" name="secondary_ocr_model" aria-label="Secondary OCR model">
+              <option value="{{ settings.ocr.secondary_model }}">{{ settings.ocr.secondary_model }}</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="model-result hidden" id="ocr_model_result"></div>
+      </div>
+
       <button type="submit">Save folder locations</button>
     </form>
   </div>
+  <script>
+    (function () {
+      const input = document.getElementById("watch_folder");
+      const status = document.getElementById("watch_status");
+      const statusText = document.getElementById("watch_status_text");
+      let timer = null;
+      let requestId = 0;
+
+      function setState(state, message) {
+        status.classList.remove("hidden", "ok", "bad", "checking");
+        input.classList.remove("watch-ok", "watch-bad");
+        if (state === "hidden") {
+          status.classList.add("hidden");
+          return;
+        }
+        status.classList.add(state);
+        statusText.textContent = message;
+        if (state === "ok") input.classList.add("watch-ok");
+        if (state === "bad") input.classList.add("watch-bad");
+      }
+
+      async function checkWatchFolder() {
+        const value = input.value.trim();
+        if (!value) {
+          setState("hidden", "");
+          return;
+        }
+
+        const id = ++requestId;
+        setState("checking", "Checking…");
+        try {
+          const res = await fetch(
+            "/api/settings/watch-folder-check?path=" + encodeURIComponent(value)
+          );
+          if (!res.ok) throw new Error("Check failed");
+          const data = await res.json();
+          if (id !== requestId) return;
+          if (data.ok) {
+            setState("ok", "Readable");
+          } else {
+            setState("bad", data.message || "Unavailable");
+          }
+        } catch (_) {
+          if (id !== requestId) return;
+          setState("bad", "Check failed");
+        }
+      }
+
+      function scheduleCheck() {
+        clearTimeout(timer);
+        timer = setTimeout(checkWatchFolder, 400);
+      }
+
+      input.addEventListener("input", scheduleCheck);
+      input.addEventListener("blur", checkWatchFolder);
+      checkWatchFolder();
+    })();
+
+    (function () {
+      const folderInput = document.getElementById("watch_folder");
+      const panel = document.getElementById("watch_start_panel");
+      const current = document.getElementById("watch_start_current");
+      const sinceInput = document.getElementById("watch_start_since");
+      const applyBtn = document.getElementById("watch_start_apply");
+      const result = document.getElementById("watch_start_result");
+      const presetButtons = Array.from(document.querySelectorAll(".preset-btn"));
+      let busy = false;
+
+      function setPanelVisible() {
+        panel.classList.toggle("hidden", !folderInput.value.trim());
+      }
+
+      function setResult(kind, message) {
+        result.classList.remove("hidden", "ok", "bad");
+        if (!message) {
+          result.classList.add("hidden");
+          result.textContent = "";
+          return;
+        }
+        result.textContent = message;
+        if (kind) result.classList.add(kind);
+      }
+
+      function setBusy(state) {
+        busy = state;
+        applyBtn.disabled = state;
+        presetButtons.forEach(btn => { btn.disabled = state; });
+      }
+
+      function renderWatermark(data) {
+        if (!data || !data.configured) {
+          current.textContent = "Save a watch folder path first.";
+          return;
+        }
+        const watermark = data.watermark || {};
+        current.textContent = "Current start: " + (watermark.label || "unknown");
+        if (watermark.local) {
+          sinceInput.value = watermark.local;
+        } else {
+          sinceInput.value = "";
+        }
+      }
+
+      async function loadWatermark() {
+        setPanelVisible();
+        if (!folderInput.value.trim()) {
+          current.textContent = "";
+          return;
+        }
+        try {
+          const res = await fetch("/api/watch/watermark");
+          if (!res.ok) throw new Error("Could not load scan start date");
+          renderWatermark(await res.json());
+        } catch (e) {
+          current.textContent = e.message;
+        }
+      }
+
+      async function applyWatermark(payload) {
+        if (busy) return;
+        setBusy(true);
+        setResult("", "");
+        try {
+          const res = await fetch("/api/watch/watermark", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify(payload),
+          });
+          const data = await res.json();
+          if (!res.ok) {
+            throw new Error(data.detail || `HTTP ${res.status}`);
+          }
+          renderWatermark(data);
+          setResult("ok", data.message || "Scan start date updated.");
+        } catch (e) {
+          setResult("bad", e.message);
+        } finally {
+          setBusy(false);
+        }
+      }
+
+      applyBtn.addEventListener("click", () => {
+        const value = sinceInput.value.trim();
+        if (!value) {
+          setResult("bad", "Choose a date and time first.");
+          return;
+        }
+        applyWatermark({ since: value });
+      });
+
+      presetButtons.forEach(btn => {
+        btn.addEventListener("click", () => {
+          if (btn.dataset.all === "1") {
+            applyWatermark({ all_files: true });
+            return;
+          }
+          const days = Number(btn.dataset.days || "0");
+          if (!days) return;
+          applyWatermark({ days_back: days });
+        });
+      });
+
+      folderInput.addEventListener("input", () => {
+        setPanelVisible();
+        setResult("", "");
+      });
+      folderInput.addEventListener("blur", loadWatermark);
+      setPanelVisible();
+      loadWatermark();
+    })();
+
+    (function () {
+      const ollamaBtn = document.getElementById("use_ollama_btn");
+      const paddleBtn = document.getElementById("use_paddle_btn");
+      const engineCurrent = document.getElementById("ocr_engine_current");
+      const engineResult = document.getElementById("ocr_engine_result");
+      const dualGpuRow = document.getElementById("dual_gpu_row");
+      const modelPanel = document.getElementById("ocr_model_panel");
+      let currentEngine = "{{ settings.ocr.engine or settings.ocr_engine or 'ollama' }}";
+      let engineBusy = false;
+
+      function setEngineResult(kind, message) {
+        engineResult.classList.remove("hidden", "ok", "bad");
+        if (!message) {
+          engineResult.classList.add("hidden");
+          engineResult.textContent = "";
+          return;
+        }
+        engineResult.textContent = message;
+        if (kind) engineResult.classList.add(kind);
+      }
+
+      function renderEngineState(engine) {
+        currentEngine = engine;
+        engineCurrent.innerHTML = "Current: <code>" + engine + "</code>";
+        ollamaBtn.classList.toggle("active", engine === "ollama");
+        paddleBtn.classList.toggle("active", engine === "paddleocr");
+        const useOllama = engine === "ollama";
+        dualGpuRow.classList.toggle("hidden", !useOllama);
+        modelPanel.classList.toggle("hidden", !useOllama);
+      }
+
+      async function applyEngine(engine) {
+        if (engineBusy || engine === currentEngine) return;
+        engineBusy = true;
+        ollamaBtn.disabled = true;
+        paddleBtn.disabled = true;
+        setEngineResult("", "");
+        try {
+          const res = await fetch("/api/settings/ocr-engine", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({ engine }),
+          });
+          const data = await res.json();
+          if (!res.ok) {
+            throw new Error(data.detail || `HTTP ${res.status}`);
+          }
+          renderEngineState(data.engine);
+          const primary = data.backends && data.backends.primary;
+          const message = primary && primary.message
+            ? `Now using ${data.engine}. ${primary.message}`
+            : `Now using ${data.engine}.`;
+          setEngineResult("ok", message);
+        } catch (e) {
+          setEngineResult("bad", e.message);
+        } finally {
+          engineBusy = false;
+          ollamaBtn.disabled = false;
+          paddleBtn.disabled = false;
+        }
+      }
+
+      ollamaBtn.addEventListener("click", () => applyEngine("ollama"));
+      paddleBtn.addEventListener("click", () => applyEngine("paddleocr"));
+      renderEngineState(currentEngine);
+    })();
+
+    (function () {
+      const checkbox = document.getElementById("use_both_gpus");
+      const statusRow = document.getElementById("ocr_backend_status");
+
+      function pill(label, state, message) {
+        const cls = state === "ok" ? "ok" : state === "bad" ? "bad" : "muted";
+        return `<span class="gpu-pill ${cls}"><span class="watch-dot"></span>${label}: ${message}</span>`;
+      }
+
+      async function refreshOcrBackends() {
+        try {
+          const res = await fetch("/api/settings/ocr-backends");
+          if (!res.ok) throw new Error("Check failed");
+          const data = await res.json();
+          if (!data.configured) {
+            statusRow.innerHTML = pill("OCR", "muted", "not configured");
+            return;
+          }
+
+          if (data.engine === "paddleocr") {
+            statusRow.innerHTML = pill(
+              data.primary.label || "PaddleOCR",
+              data.primary.ok ? "ok" : "bad",
+              data.primary.ok ? "ready" : (data.primary.message || "unavailable")
+            );
+            return;
+          }
+
+          const parts = [
+            pill(
+              data.primary.label || "GPU1",
+              data.primary.ok ? "ok" : "bad",
+              data.primary.ok ? "ready" : (data.primary.message || "unavailable")
+            ),
+          ];
+
+          if (checkbox.checked) {
+            if (data.secondary) {
+              parts.push(
+                pill(
+                  data.secondary.label || "GPU0",
+                  data.secondary.ok ? "ok" : "bad",
+                  data.secondary.ok ? "ready" : (data.secondary.message || "unavailable")
+                )
+              );
+            }
+            if (data.parallel) {
+              parts.push(pill("OCR", "ok", "parallel mode"));
+            } else if (data.use_both_gpus) {
+              parts.push(pill("OCR", "bad", "GPU0 unavailable — GPU1 only"));
+            }
+          }
+
+          statusRow.innerHTML = parts.join("");
+        } catch (_) {
+          statusRow.innerHTML = pill("OCR", "bad", "check failed");
+        }
+      }
+
+      checkbox.addEventListener("change", refreshOcrBackends);
+      refreshOcrBackends();
+      setInterval(refreshOcrBackends, 5000);
+    })();
+
+    (function () {
+      const gpuCheckbox = document.getElementById("use_both_gpus");
+      const secondarySection = document.getElementById("secondary_model_section");
+      const primarySelect = document.getElementById("ocr_model");
+      const secondarySelect = document.getElementById("secondary_ocr_model");
+      const primaryCurrent = document.getElementById("ocr_model_current");
+      const secondaryCurrent = document.getElementById("secondary_ocr_model_current");
+      const refreshBtn = document.getElementById("ocr_model_refresh");
+      const applyBtn = document.getElementById("ocr_model_apply");
+      const result = document.getElementById("ocr_model_result");
+      let busy = false;
+
+      function setSecondaryVisible() {
+        secondarySection.classList.toggle("hidden", !gpuCheckbox.checked);
+      }
+
+      function setResult(kind, message) {
+        result.classList.remove("hidden", "ok", "bad");
+        if (!message) {
+          result.classList.add("hidden");
+          result.textContent = "";
+          return;
+        }
+        result.textContent = message;
+        if (kind) result.classList.add(kind);
+      }
+
+      function setBusy(state) {
+        busy = state;
+        refreshBtn.disabled = state;
+        applyBtn.disabled = state;
+        primarySelect.disabled = state;
+        secondarySelect.disabled = state;
+      }
+
+      function fillSelect(select, models, selected, placeholder) {
+        const current = selected || "";
+        select.innerHTML = "";
+        if (!models.length) {
+          const opt = document.createElement("option");
+          opt.value = current;
+          opt.textContent = current || placeholder;
+          select.appendChild(opt);
+          return;
+        }
+        if (current && !models.includes(current)) {
+          const opt = document.createElement("option");
+          opt.value = current;
+          opt.textContent = current + " (configured)";
+          select.appendChild(opt);
+        }
+        models.forEach(name => {
+          const opt = document.createElement("option");
+          opt.value = name;
+          opt.textContent = name;
+          if (name === current) opt.selected = true;
+          select.appendChild(opt);
+        });
+        if (current) select.value = current;
+      }
+
+      function renderCurrent(selected) {
+        primaryCurrent.innerHTML = "Current: <code>" + (selected.primary_model || "—") + "</code>";
+        secondaryCurrent.innerHTML =
+          "Current: <code>" + (selected.secondary_model || "—") + "</code>";
+      }
+
+      async function loadModels() {
+        if (busy) return;
+        setBusy(true);
+        setResult("", "");
+        try {
+          const res = await fetch("/api/settings/ollama-models");
+          if (!res.ok) throw new Error("Could not load models");
+          const data = await res.json();
+          const selected = data.selected || {};
+          const primaryModels = data.primary && data.primary.ok ? data.primary.models : [];
+          const secondaryModels = data.secondary && data.secondary.ok ? data.secondary.models : [];
+
+          fillSelect(primarySelect, primaryModels, selected.primary_model, "No models found");
+          fillSelect(
+            secondarySelect,
+            secondaryModels,
+            selected.secondary_model,
+            "No models found"
+          );
+          renderCurrent(selected);
+
+          const parts = [];
+          if (data.primary && !data.primary.ok) {
+            parts.push("GPU1: " + (data.primary.message || "unavailable"));
+          }
+          if (gpuCheckbox.checked && data.secondary && !data.secondary.ok) {
+            parts.push("GPU0: " + (data.secondary.message || "unavailable"));
+          }
+          if (parts.length) {
+            setResult("bad", parts.join(" · "));
+          } else {
+            const count = primaryModels.length + (gpuCheckbox.checked ? secondaryModels.length : 0);
+            setResult("ok", count + " model(s) loaded.");
+          }
+        } catch (e) {
+          setResult("bad", e.message);
+        } finally {
+          setBusy(false);
+        }
+      }
+
+      async function applyModel() {
+        if (busy) return;
+        const primaryModel = primarySelect.value.trim();
+        if (!primaryModel) {
+          setResult("bad", "Choose a primary model first.");
+          return;
+        }
+        setBusy(true);
+        setResult("", "");
+        const payload = { primary_model: primaryModel };
+        if (gpuCheckbox.checked) {
+          const secondaryModel = secondarySelect.value.trim();
+          if (secondaryModel) payload.secondary_model = secondaryModel;
+        }
+        try {
+          const res = await fetch("/api/settings/ocr-model", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify(payload),
+          });
+          const data = await res.json();
+          if (!res.ok) {
+            throw new Error(data.detail || `HTTP ${res.status}`);
+          }
+          renderCurrent({
+            primary_model: data.primary_model,
+            secondary_model: data.secondary_model,
+          });
+          primarySelect.value = data.primary_model;
+          if (data.secondary_model) secondarySelect.value = data.secondary_model;
+          setResult("ok", "OCR model saved. The worker will use it within about 30 seconds.");
+        } catch (e) {
+          setResult("bad", e.message);
+        } finally {
+          setBusy(false);
+        }
+      }
+
+      gpuCheckbox.addEventListener("change", setSecondaryVisible);
+      refreshBtn.addEventListener("click", loadModels);
+      applyBtn.addEventListener("click", applyModel);
+      setSecondaryVisible();
+      loadModels();
+    })();
+  </script>
 </body>
 </html>

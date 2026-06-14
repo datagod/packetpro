@@ -12,6 +12,7 @@ from packetpro.config import ConfigError, load_config
 from packetpro.web.app import create_app
 from packetpro.workers.enhance_worker import run_enhance_worker
 from packetpro.workers.ocr_worker import run_ocr_worker
+from packetpro.workers.watch_worker import run_watch_worker
 
 console = Console()
 
@@ -42,6 +43,11 @@ def cmd_enhance(args: argparse.Namespace) -> None:
 def cmd_ocr(args: argparse.Namespace) -> None:
     config = _load_or_exit(args.config)
     run_ocr_worker(config)
+
+
+def cmd_watch(args: argparse.Namespace) -> None:
+    config = _load_or_exit(args.config)
+    run_watch_worker(config)
 
 
 def _web_bind(config_path: Path | None) -> tuple[str, int]:
@@ -84,6 +90,10 @@ def build_parser() -> argparse.ArgumentParser:
     ocr = sub.add_parser("ocr", help="Watch transformed folder and run OCR")
     _add_config_arg(ocr)
     ocr.set_defaults(func=cmd_ocr)
+
+    watch = sub.add_parser("watch", help="Watch an external folder and process files in place")
+    _add_config_arg(watch)
+    watch.set_defaults(func=cmd_watch)
 
     web = sub.add_parser("web", help="Start the search web UI")
     _add_config_arg(web)

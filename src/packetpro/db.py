@@ -148,19 +148,87 @@ def get_document(db_path: Path, doc_id: int) -> Document | None:
     return Document(**dict(row))
 
 
-def _fts_query(query: str) -> str:
-    terms = re.findall(r"[\w]+", query, flags=re.UNICODE)
-    if not terms:
+def count_documents_with_archive(db_path: Path, archive_path: str) -> int:
+    with sqlite3.connect(db_path) as conn:
+        row = conn.execute(
+            "SELECT COUNT(*) FROM documents WHERE archive_path = ?",
+            (archive_path,),
+        ).fetchone()
+    return int(row[0]) if row else 0
+
+
+def count_documents(db_path: Path) -> int:
+    with sqlite3.connect(db_path) as conn:
+        row = conn.execute("SELECT COUNT(*) FROM documents").fetchone()
+    return int(row[0]) if row else 0
+
+
+def count_distinct_sources(db_path: Path) -> int:
+    with sqlite3.connect(db_path) as conn:
+        row = conn.execute(
+            "SELECT COUNT(DISTINCT archive_path) FROM documents"
+        ).fetchone()
+    return int(row[0]) if row else 0
+
+
+def delete_document(db_path: Path, doc_id: int) -> bool:
+    with sqlite3.connect(db_path) as conn:
+        cursor = conn.execute("DELETE FROM documents WHERE id = ?", (doc_id,))
+        conn.commit()
+        return cursor.rowcount > 0
+
+
+def _parse_search_query(query: str) -> tuple[list[str], list[str]]:
+    """Split query into quoted phrases and unquoted words."""
+    phrases: list[str] = []
+    words: list[str] = []
+    pattern = re.compile(r'"([^"]*)"|([^\s"]+)', flags=re.UNICODE)
+    for match in pattern.finditer(query.strip()):
+        if match.group(1) is not None:
+            phrase = match.group(1).strip()
+            if phrase:
+                phrases.append(phrase)
+        else:
+            word = match.group(2).strip()
+            if word:
+                words.append(word)
+    return phrases, words
+
+
+def _fts_escape_phrase(phrase: str) -> str:
+    return '"' + phrase.replace('"', '""') + '"'
+
+
+def _fts_word_expr(words: list[str]) -> str:
+    if not words:
         return ""
-    return " ".join(f'"{term}"' for term in terms)
+    if len(words) == 1:
+        return words[0]
+    return "(" + " OR ".join(words) + ")"
+
+
+def _fts_query(query: str) -> str:
+    phrases, words = _parse_search_query(query)
+    if not phrases and not words:
+        return ""
+
+    parts = [_fts_escape_phrase(phrase) for phrase in phrases]
+    word_expr = _fts_word_expr(words)
+    if word_expr:
+        parts.append(word_expr)
+    return " ".join(parts)
 
 
 def _highlight_full_text(text: str, query: str) -> str:
     if not text:
         return ""
     highlighted = html.escape(text)
-    for term in re.findall(r"[\w]+", query, flags=re.UNICODE):
-        pattern = re.compile(re.escape(term), re.IGNORECASE)
+    phrases, words = _parse_search_query(query)
+    for phrase in sorted(phrases, key=len, reverse=True):
+        pattern = re.compile(re.escape(phrase), re.IGNORECASE)
+        highlighted = pattern.sub(lambda m: f"<mark>{m.group(0)}</mark>", highlighted)
+    for word in words:
+        pattern = re.compile(re.escape(word), re.IGNORECASE)
         highlighted = pattern.sub(lambda m: f"<mark>{m.group(0)}</mark>", highlighted)
     return highlighted
 

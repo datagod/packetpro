@@ -53,7 +53,15 @@ def _deskew(gray: np.ndarray) -> np.ndarray:
     )
 
 
-def enhance_image(image: np.ndarray, config: EnhanceConfig) -> np.ndarray:
+def enhance_image(
+    image: np.ndarray,
+    config: EnhanceConfig,
+    *,
+    skip_upscale: bool = False,
+) -> np.ndarray:
+    if not config.enabled:
+        return image.copy()
+
     if len(image.shape) == 3:
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     else:
@@ -70,7 +78,7 @@ def enhance_image(image: np.ndarray, config: EnhanceConfig) -> np.ndarray:
         gray = _deskew(gray)
 
     min_side = min(gray.shape[:2])
-    if min_side < config.upscale_min_side:
+    if not skip_upscale and min_side < config.upscale_min_side:
         scale = config.upscale_factor
         gray = cv2.resize(
             gray,

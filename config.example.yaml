@@ -8,5 +8,12 @@ folders:
   transformed: transformed
   archive: archive
   failed: failed
+  exports: Exports
 
 database: packetpro.db
+
+# Optional: process new files in place from this folder (absolute path).
+# watch_folder: /mnt/nas-bill/ScreenCaptures
+
+# ocr:
+#   use_both_gpus: true
