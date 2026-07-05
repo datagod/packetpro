@@ -1,0 +1,39 @@
+/* PacketPro result themes — scoped to .results-viewport only */
+.results-viewport { position: relative; overflow: hidden; border-radius: 12px; }
+.results-viewport.crt-scanlines::after {
+  content: ''; position: absolute; inset: 0; pointer-events: none; border-radius: inherit;
+  background: repeating-linear-gradient(0deg, rgba(0,0,0,0.14) 0, rgba(0,0,0,0.14) 1px, transparent 1px, transparent 3px);
+  opacity: 0.45; z-index: 2;
+}
+.results-viewport .result-actions,
+.results-viewport .result,
+.results-viewport .ocr-text,
+.results-viewport .title,
+.results-viewport .title-text,
+.results-viewport mark,
+.results-viewport .thumb,
+.results-viewport .empty { position: relative; z-index: 1; }
+.results-viewport.theme-mainframe::before { content: ''; position: absolute; inset: 0; pointer-events: none; border-radius: inherit; background: repeating-linear-gradient(0deg, rgba(0,0,0,0.18) 0, rgba(0,0,0,0.18) 1px, transparent 1px, transparent 3px); opacity: 0.35; z-index: 0; }
+.results-viewport.theme-nasa70s::before { content: ''; position: absolute; inset: 0; pointer-events: none; border-radius: inherit; background: repeating-linear-gradient(0deg, rgba(0,0,0,0.2) 0, rgba(0,0,0,0.2) 1px, transparent 1px, transparent 3px); opacity: 0.35; z-index: 0; }
+.results-viewport.theme-pdp11::before { content: ''; position: absolute; inset: 0; pointer-events: none; border-radius: inherit; background: repeating-linear-gradient(0deg, rgba(0,0,0,0.16) 0, rgba(0,0,0,0.16) 1px, transparent 1px, transparent 3px); opacity: 0.3; z-index: 0; }
+.results-viewport.theme-weylandyutani::before { content: ''; position: absolute; inset: 0; pointer-events: none; border-radius: inherit; background: repeating-linear-gradient(0deg, rgba(0,0,0,0.2) 0, rgba(0,0,0,0.2) 1px, transparent 1px, transparent 3px); opacity: 0.3; z-index: 0; }
+.results-viewport.theme-phosphor { box-shadow: inset 0 0 48px rgba(0, 80, 0, 0.25); }
+.results-viewport.theme-amber { box-shadow: inset 0 0 40px rgba(120, 70, 0, 0.2); }
+.results-viewport.theme-arcade::before { content: ''; position: absolute; inset: 0; pointer-events: none; border-radius: inherit; background: radial-gradient(ellipse at 50% 0%, rgba(33,33,222,0.15), transparent 55%); z-index: 0; }
+.results-viewport.theme-dune1984::before { content: ''; position: absolute; inset: 0; pointer-events: none; border-radius: inherit; background: linear-gradient(180deg, rgba(180,140,60,0.12), transparent 40%); z-index: 0; }
+.results-viewport.theme-logansrun::before { content: ''; position: absolute; inset: 0; pointer-events: none; border-radius: inherit; background: linear-gradient(135deg, rgba(255,128,64,0.1), rgba(0,200,255,0.08)); z-index: 0; }
+.results-viewport.theme-empire::before { content: ''; position: absolute; inset: 0; pointer-events: none; border-radius: inherit; background-image: linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px); background-size: 24px 24px; z-index: 0; }
+.results-viewport.theme-reddwarf::before { content: ''; position: absolute; inset: 0; pointer-events: none; border-radius: inherit; background: radial-gradient(ellipse at 20% 10%, rgba(120,216,240,0.15), transparent 50%), radial-gradient(ellipse at 80% 90%, rgba(240,216,120,0.08), transparent 45%); z-index: 0; }
+.results-viewport.theme-tripleplanets::before { content: ''; position: absolute; inset: 0; pointer-events: none; border-radius: inherit; background: radial-gradient(circle at 15% 20%, rgba(200,40,40,0.2) 0, transparent 18%), radial-gradient(circle at 50% 35%, rgba(240,200,48,0.15) 0, transparent 16%), radial-gradient(circle at 82% 55%, rgba(80,160,220,0.18) 0, transparent 18%); z-index: 0; }
+.results-viewport.theme-kawaiimail::before { content: ''; position: absolute; inset: 0; pointer-events: none; border-radius: inherit; background: radial-gradient(circle at 10% 20%, rgba(255,180,220,0.25), transparent 35%), radial-gradient(circle at 90% 80%, rgba(180,220,255,0.2), transparent 35%); z-index: 0; }
+.results-viewport.theme-computer50s::before { content: ''; position: absolute; inset: 0; pointer-events: none; border-radius: inherit; background-image: linear-gradient(rgba(80,60,40,0.06) 1px, transparent 1px), linear-gradient(90deg, rgba(80,60,40,0.06) 1px, transparent 1px); background-size: 20px 20px; z-index: 0; }
+.results-viewport.theme-teleprinter .ocr-text { background: repeating-linear-gradient(180deg, #e8e2d0 0, #e8e2d0 24px, #ddd7c6 24px, #ddd7c6 25px); }
+.results-viewport.theme-blueprint .ocr-text { background-image: linear-gradient(rgba(74,159,212,0.08) 1px, transparent 1px), linear-gradient(90deg, rgba(74,159,212,0.08) 1px, transparent 1px); background-size: 18px 18px; }
+.results-viewport.theme-dotmatrix .ocr-text { letter-spacing: 0.04em; word-spacing: 0.08em; }
+.results-viewport.theme-c64 .title-text, .results-viewport.theme-c64 .ocr-text { text-transform: uppercase; }
+.results-viewport.theme-macintosh .result { box-shadow: 1px 1px 0 #808080, 2px 2px 0 #c0c0c0; border-radius: 4px; }
+.results-viewport.theme-pacmail .title-text { font-size: 0.62rem; line-height: 1.6; text-shadow: 2px 2px 0 #ff0000; }
+.results-viewport.theme-pacmail .ocr-text { font-weight: 600; line-height: 1.65; }
+.results-viewport.theme-mailtrek .result { border-left: 6px solid #99ccff; border-radius: 0 0 0 12px; }
+.results-viewport.theme-lsmail .result { border: 2px solid #ffff55; }
+.results-viewport.theme-mailcraft .result { border: 2px solid #808080; box-shadow: inset 1px 1px 0 #fff, inset -1px -1px 0 #404040; }

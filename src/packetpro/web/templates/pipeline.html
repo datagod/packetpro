@@ -1,0 +1,1203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PacketPro — Pipeline</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg: #0f1419;
+      --panel: #1a2332;
+      --text: #e7ecf3;
+      --muted: #9aa7b8;
+      --accent: #4da3ff;
+      --border: #2b3a4f;
+      --ok: #7dffb2;
+      --err: #ff8f8f;
+      --warn: #ffe08a;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", system-ui, sans-serif;
+      background: linear-gradient(180deg, #0b1016, var(--bg));
+      color: var(--text);
+      min-height: 100vh;
+    }
+    .wrap {
+      width: 100%;
+      max-width: min(1400px, 100%);
+      margin: 0 auto;
+      padding: 1.25rem clamp(0.5rem, 1vw, 0.85rem) 2rem;
+    }
+    .site-nav { margin-bottom: 1.5rem; }
+    .site-nav a {
+      color: var(--accent);
+      text-decoration: none;
+      margin-right: 1.25rem;
+      font-weight: 500;
+    }
+    .site-nav a.active {
+      color: var(--text);
+      border-bottom: 2px solid var(--accent);
+      padding-bottom: 0.15rem;
+    }
+    header h1 { margin: 0 0 0.25rem; font-size: 2rem; letter-spacing: 0.02em; }
+    header p { margin: 0 0 1.5rem; color: var(--muted); }
+    .banner {
+      padding: 0.85rem 1rem;
+      border-radius: 10px;
+      margin-bottom: 1.25rem;
+      background: rgba(77, 163, 255, 0.12);
+      color: #b9d9ff;
+    }
+    .banner.err {
+      background: rgba(255, 143, 143, 0.12);
+      color: #ffc7c7;
+      border: 1px solid rgba(255, 143, 143, 0.25);
+    }
+    .banner a { color: var(--accent); }
+    .pipeline-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(280px, 22rem);
+      gap: 1rem;
+      align-items: start;
+    }
+    .panel {
+      padding: 1rem 1.1rem;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: rgba(26, 35, 50, 0.75);
+    }
+    .panel-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 0.85rem;
+      flex-wrap: wrap;
+    }
+    .panel-head h2 {
+      margin: 0;
+      font-size: 1.1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+    }
+    .live-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--accent);
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.35; }
+    }
+    .stat-sub { color: var(--muted); font-size: 0.78rem; }
+    .control-hero {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 1rem;
+      margin-bottom: 1rem;
+    }
+    .control-btn {
+      padding: 0.7rem 1.25rem;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      font-weight: 600;
+      cursor: pointer;
+      font-size: 0.95rem;
+    }
+    .control-btn.running {
+      background: #2d5a3d;
+      color: var(--ok);
+      border-color: #3d8f67;
+    }
+    .control-btn.stopped {
+      background: #5a2d2d;
+      color: #ffb0b0;
+      border-color: #7a3b3b;
+    }
+    .control-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .kickstart-btn {
+      padding: 0.7rem 1.15rem;
+      border-radius: 10px;
+      border: 1px solid #3d8f67;
+      background: linear-gradient(180deg, #3a8f5c, #2d5a3d);
+      color: var(--ok);
+      font-weight: 700;
+      font-size: 0.95rem;
+      cursor: pointer;
+    }
+    .kickstart-btn:hover:not(:disabled) {
+      filter: brightness(1.08);
+      color: #d8ffe8;
+    }
+    .kickstart-btn:disabled { opacity: 0.55; cursor: wait; }
+    .kickstart-result {
+      width: 100%;
+      flex-basis: 100%;
+      color: var(--muted);
+      font-size: 0.82rem;
+      line-height: 1.4;
+    }
+    .kickstart-result.ok { color: var(--ok); }
+    .kickstart-result.warn { color: #ffd28a; }
+    .kickstart-result.err { color: var(--err); }
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.45rem;
+      padding: 0.45rem 0.75rem;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      font-size: 0.88rem;
+      font-weight: 600;
+    }
+    .status-pill.running { color: var(--ok); border-color: rgba(125, 255, 178, 0.35); }
+    .status-pill.paused { color: #ffb0b0; border-color: rgba(255, 143, 143, 0.35); }
+    .status-pill.offline { color: var(--muted); }
+    .status-dot {
+      width: 0.55rem;
+      height: 0.55rem;
+      border-radius: 50%;
+      background: currentColor;
+    }
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 0.75rem;
+      margin-bottom: 1rem;
+    }
+    .stat-card {
+      padding: 0.75rem;
+      border-radius: 8px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+    }
+    .stat-label { color: var(--muted); font-size: 0.82rem; }
+    .stat-value {
+      font-size: 1.45rem;
+      font-weight: 700;
+      margin-top: 0.15rem;
+      font-variant-numeric: tabular-nums;
+    }
+    .stat-value.time-eta { font-size: 1.3rem; letter-spacing: 0.04em; }
+    .speedometer-card { grid-column: 1 / -1; }
+    .speedometer-svg { width: 100%; max-width: 280px; height: auto; display: block; margin: 0 auto; }
+    .speedometer-arc-bg {
+      fill: none;
+      stroke: rgba(154, 167, 184, 0.2);
+      stroke-width: 10;
+      stroke-linecap: round;
+    }
+    .speedometer-arc-fill {
+      fill: none;
+      stroke: url(#speedometerGradient);
+      stroke-width: 10;
+      stroke-linecap: round;
+      transition: stroke-dashoffset 0.45s ease;
+    }
+    .speedometer-tick { stroke: rgba(154, 167, 184, 0.35); stroke-width: 1.5; }
+    .speedometer-needle {
+      stroke: #ff6b6b;
+      stroke-width: 3;
+      stroke-linecap: round;
+      transform-origin: 100px 95px;
+      transition: transform 0.45s ease;
+    }
+    .speedometer-hub { fill: var(--text); }
+    .speedometer-readout {
+      display: flex;
+      align-items: baseline;
+      justify-content: center;
+      gap: 0.4rem;
+      margin-top: 0.2rem;
+    }
+    .speedometer-value { font-size: 1.55rem; font-weight: 700; }
+    .speedometer-unit { font-size: 0.78rem; color: var(--muted); }
+    .speedometer-scale {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.68rem;
+      color: var(--muted);
+      margin-top: 0.35rem;
+      max-width: 280px;
+      margin-left: auto;
+      margin-right: auto;
+      padding: 0 0.35rem;
+    }
+    .action-btn {
+      margin-top: 0.55rem;
+      width: 100%;
+      padding: 0.45rem 0.65rem;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: rgba(77, 163, 255, 0.14);
+      color: var(--accent);
+      font-weight: 600;
+      font-size: 0.78rem;
+      cursor: pointer;
+    }
+    .action-btn:hover:not(:disabled) { background: rgba(77, 163, 255, 0.24); }
+    .action-btn:disabled { opacity: 0.55; cursor: wait; }
+    .action-result { color: var(--muted); font-size: 0.74rem; margin-top: 0.35rem; line-height: 1.35; }
+    .workers-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 0.75rem;
+      margin-bottom: 1rem;
+    }
+    .worker-card {
+      padding: 0.85rem;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: var(--panel);
+    }
+    .worker-card h3 {
+      margin: 0 0 0.5rem;
+      font-size: 0.95rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .worker-card.enhance h3 { color: #9dffc8; }
+    .worker-card.ocr h3 { color: #b9d9ff; }
+    .worker-card.watch h3 { color: #d4b5ff; }
+    .worker-detail { font-size: 0.82rem; color: var(--muted); line-height: 1.45; }
+    .worker-detail strong { color: var(--text); font-weight: 600; }
+    .chip-row { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.5rem; }
+    .chip {
+      padding: 0.35rem 0.65rem;
+      border-radius: 999px;
+      font-size: 0.82rem;
+      border: 1px solid var(--border);
+      background: rgba(15, 20, 25, 0.55);
+    }
+    .chip.ok { border-color: #3d8f67; color: #9dffc8; }
+    .chip.busy { border-color: #b38c2a; color: var(--warn); }
+    .chip.off { border-color: #7a3b3b; color: #ffb0b0; }
+    .chip.gpu { border-color: #3d689f; color: #b9d9ff; }
+    .paths-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 0.5rem 1rem;
+      font-size: 0.85rem;
+    }
+    .path-item dt { color: var(--muted); margin: 0; font-size: 0.78rem; }
+    .path-item dd {
+      margin: 0.15rem 0 0;
+      word-break: break-all;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 0.8rem;
+    }
+    .activity-sidebar {
+      position: sticky;
+      top: 1.25rem;
+      max-height: calc(100vh - 2.5rem);
+      display: flex;
+      flex-direction: column;
+      min-height: 24rem;
+    }
+    .activity-panel { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+    .activity-log {
+      flex: 1;
+      min-height: 12rem;
+      max-height: calc(100vh - 10rem);
+      overflow-y: auto;
+      margin-top: 0.65rem;
+      font-size: 0.82rem;
+      line-height: 1.45;
+      scroll-behavior: smooth;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(154, 167, 184, 0.42) transparent;
+    }
+    .activity-entry {
+      padding: 0.45rem 0.4rem;
+      border-bottom: 1px solid rgba(43, 58, 79, 0.55);
+    }
+    .activity-entry:last-child { border-bottom: 0; }
+    .activity-time { color: var(--muted); font-variant-numeric: tabular-nums; margin-right: 0.45rem; }
+    .activity-worker {
+      font-weight: 600;
+      text-transform: uppercase;
+      font-size: 0.75rem;
+      letter-spacing: 0.04em;
+    }
+    .activity-worker.enhance { color: #9dffc8; }
+    .activity-worker.ocr { color: #b9d9ff; }
+    .activity-worker.watch { color: #d4b5ff; }
+    .activity-worker.system { color: var(--warn); }
+    .activity-worker.debug { color: var(--muted); }
+    .activity-entry.debug .activity-msg { color: var(--muted); font-style: italic; }
+    .activity-msg { color: #d5deea; word-break: break-word; }
+    .activity-empty { color: var(--muted); padding: 1rem 0; text-align: center; }
+    .debug-toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 0.82rem;
+      color: var(--muted);
+      cursor: pointer;
+      user-select: none;
+    }
+    .debug-toggle input { accent-color: var(--accent); }
+    .stats-error { color: #ffb0b0; font-size: 0.9rem; margin-top: 0.5rem; }
+    .investigate-btn {
+      padding: 0.7rem 1.1rem;
+      border-radius: 10px;
+      border: 1px solid rgba(255, 224, 138, 0.45);
+      background: rgba(255, 224, 138, 0.12);
+      color: var(--warn);
+      font-weight: 600;
+      font-size: 0.92rem;
+      cursor: pointer;
+    }
+    .investigate-btn:hover { background: rgba(255, 224, 138, 0.22); color: #fff1c7; }
+    .investigate-btn.active {
+      background: rgba(255, 224, 138, 0.24);
+      border-color: rgba(255, 224, 138, 0.65);
+      color: #fff1c7;
+    }
+    .investigate-panel {
+      margin-bottom: 1rem;
+      padding: 0.9rem 1rem;
+      border-radius: 10px;
+      border: 1px solid rgba(255, 224, 138, 0.28);
+      background: rgba(255, 224, 138, 0.08);
+    }
+    .investigate-panel[hidden] { display: none; }
+    .investigate-panel h3 {
+      margin: 0 0 0.65rem;
+      font-size: 0.95rem;
+      color: var(--warn);
+    }
+    .investigate-findings {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+      display: grid;
+      gap: 0.45rem;
+    }
+    .investigate-findings li {
+      padding: 0.55rem 0.65rem;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: rgba(15, 20, 25, 0.45);
+      font-size: 0.86rem;
+      line-height: 1.4;
+    }
+    .investigate-findings li.ok { border-color: rgba(125, 255, 178, 0.35); color: #c9ffe0; }
+    .investigate-findings li.warn { border-color: rgba(255, 224, 138, 0.35); color: #ffe9b0; }
+    .investigate-findings li.err { border-color: rgba(255, 143, 143, 0.35); color: #ffc7c7; }
+    .investigate-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.6rem;
+      margin-top: 0.75rem;
+    }
+    .investigate-link-btn {
+      padding: 0.45rem 0.8rem;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--panel);
+      color: var(--text);
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .investigate-link-btn:hover {
+      border-color: var(--accent);
+      color: #b9d9ff;
+    }
+    @media (max-width: 960px) {
+      .pipeline-layout { grid-template-columns: 1fr; }
+      .activity-sidebar { position: static; max-height: 28rem; }
+      .activity-log { max-height: 22rem; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    {% include "_nav.html" %}
+
+    <header>
+      <h1>Pipeline</h1>
+      <p>Monitor workers, control processing, and watch live activity.</p>
+    </header>
+
+    {% if not configured %}
+      <div class="banner">
+        Folder locations are not configured yet.
+        <a href="/settings">Open Settings</a> to choose inbox, archive, and database paths.
+      </div>
+    {% endif %}
+
+    <div class="pipeline-layout">
+      <div class="pipeline-main">
+        <section class="panel">
+          <div class="control-hero">
+            <button type="button" class="kickstart-btn" id="kickstart-btn">
+              Kickstart pipeline
+            </button>
+            <button type="button" class="control-btn running" id="control-btn" disabled>
+              Processing...
+            </button>
+            <button type="button" class="investigate-btn" id="investigate-btn">
+              Investigate
+            </button>
+            <span class="status-pill offline" id="status-pill">
+              <span class="status-dot"></span>
+              <span id="status-text">Checking...</span>
+            </span>
+            <span class="stat-sub" id="control-updated"></span>
+            <div class="kickstart-result" id="kickstart-result" hidden></div>
+          </div>
+
+          <div class="investigate-panel" id="investigate-panel" hidden>
+            <h3>Investigation findings</h3>
+            <ul class="investigate-findings" id="investigate-findings">
+              <li class="warn">Collecting diagnostics…</li>
+            </ul>
+            <div class="investigate-actions">
+              <button type="button" class="investigate-link-btn" id="investigate-scroll-activity">
+                Jump to activity log
+              </button>
+              <button type="button" class="investigate-link-btn" id="investigate-scroll-workers">
+                Jump to workers
+              </button>
+            </div>
+          </div>
+
+          <div class="panel-head">
+            <h2><span class="live-dot"></span>Live stats</h2>
+            <span class="stat-sub" id="stats-updated">Updating...</span>
+          </div>
+
+          <div class="stats-grid">
+            <div class="stat-card speedometer-card">
+              <div class="stat-label">OCR speed</div>
+              <svg viewBox="0 0 200 110" class="speedometer-svg" role="img" aria-label="OCR throughput gauge">
+                <defs>
+                  <linearGradient id="speedometerGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" stop-color="#4da3ff"/>
+                    <stop offset="55%" stop-color="#7dffb2"/>
+                    <stop offset="100%" stop-color="#ffe08a"/>
+                  </linearGradient>
+                </defs>
+                <path class="speedometer-arc-bg" d="M 24 95 A 76 76 0 0 1 176 95"/>
+                <path class="speedometer-arc-fill" id="speedometer-arc-fill" d="M 24 95 A 76 76 0 0 1 176 95"/>
+                <g id="speedometer-ticks"></g>
+                <line class="speedometer-needle" id="speedometer-needle" x1="100" y1="95" x2="100" y2="34"/>
+                <circle class="speedometer-hub" cx="100" cy="95" r="5"/>
+              </svg>
+              <div class="speedometer-readout">
+                <span class="speedometer-value" id="speedometer-value">0</span>
+                <span class="speedometer-unit">images / min</span>
+              </div>
+              <div class="speedometer-scale">
+                <span>0</span>
+                <span id="speedometer-max">10</span>
+              </div>
+              <div class="stat-sub" id="speedometer-sub" style="text-align:center">5 min average: 0</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Inbox</div>
+              <div class="stat-value" id="stat-inbox">-</div>
+              <div class="stat-sub">waiting files</div>
+            </div>
+            <div class="stat-card" id="stat-watch-card" hidden>
+              <div class="stat-label" id="stat-watch-label">Watch folder</div>
+              <div class="stat-value" id="stat-watch-pending">-</div>
+              <div class="stat-sub" id="stat-watch-sub">eligible since scan start</div>
+              <button type="button" class="action-btn" id="watch-scan-btn">Scan folder</button>
+              <div class="action-result" id="watch-scan-result" hidden></div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">OCR queue</div>
+              <div class="stat-value" id="stat-queue">-</div>
+              <div class="stat-sub" id="stat-queue-sub">pending OCR jobs</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Time to complete</div>
+              <div class="stat-value time-eta" id="stat-eta">--:--:--</div>
+              <div class="stat-sub" id="stat-eta-sub">at current speed</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Indexed</div>
+              <div class="stat-value" id="stat-indexed">-</div>
+              <div class="stat-sub" id="stat-indexed-sub">images in database</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Throughput (1h)</div>
+              <div class="stat-value" id="stat-throughput">-</div>
+              <div class="stat-sub" id="stat-throughput-sub">enhanced / OCR complete</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Duplicates</div>
+              <div class="stat-value" id="stat-duplicates">-</div>
+              <div class="stat-sub">skipped (last 1h)</div>
+            </div>
+          </div>
+          <div class="stats-error" id="stats-error" hidden></div>
+        </section>
+
+        <section class="panel" style="margin-top:1rem" id="workers-section">
+          <div class="panel-head">
+            <h2>Workers</h2>
+          </div>
+          <div class="workers-grid" id="workers-grid">
+            <div class="worker-card enhance">
+              <h3>Enhance</h3>
+              <div class="worker-detail" id="worker-enhance">Checking...</div>
+            </div>
+            <div class="worker-card ocr">
+              <h3>OCR</h3>
+              <div class="worker-detail" id="worker-ocr">Checking...</div>
+            </div>
+            <div class="worker-card watch">
+              <h3>Watch</h3>
+              <div class="worker-detail" id="worker-watch">Checking...</div>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel" style="margin-top:1rem">
+          <div class="panel-head">
+            <h2>OCR backends</h2>
+          </div>
+          <div class="chip-row" id="ocr-backends"></div>
+        </section>
+
+        <section class="panel" style="margin-top:1rem">
+          <div class="panel-head">
+            <h2>GPU</h2>
+          </div>
+          <div class="chip-row" id="gpu-chips"></div>
+          <div class="chip-row" id="proc-chips"></div>
+        </section>
+
+        <section class="panel" style="margin-top:1rem">
+          <div class="panel-head">
+            <h2>Paths</h2>
+          </div>
+          <dl class="paths-grid" id="paths-grid">
+            <div class="path-item"><dt>Inbox</dt><dd id="path-inbox">—</dd></div>
+            <div class="path-item"><dt>Transformed</dt><dd id="path-transformed">—</dd></div>
+            <div class="path-item"><dt>Archive</dt><dd id="path-archive">—</dd></div>
+            <div class="path-item"><dt>Failed</dt><dd id="path-failed">—</dd></div>
+            <div class="path-item"><dt>Database</dt><dd id="path-database">—</dd></div>
+            <div class="path-item"><dt>Watch folder</dt><dd id="path-watch">—</dd></div>
+          </dl>
+        </section>
+      </div>
+
+      <aside class="activity-sidebar" id="activity-sidebar">
+        <section class="panel activity-panel">
+          <div class="panel-head">
+            <h2>Activity log</h2>
+            <label class="debug-toggle">
+              <input type="checkbox" id="debug-toggle">
+              Debug
+            </label>
+          </div>
+          <span class="stat-sub" id="activity-updated">Updating...</span>
+          <div class="activity-log" id="activity-log">
+            <div class="activity-empty">Waiting for activity...</div>
+          </div>
+        </section>
+      </aside>
+    </div>
+  </div>
+
+  <script>
+    let processingEnabled = true;
+    let controlBusy = false;
+    let showDebug = false;
+    let investigateMode = {{ investigate | tojson }};
+    let latestStats = null;
+    let latestActivity = [];
+    let lastActivityKeys = [];
+
+    function formatTime(ts) {
+      try { return new Date(ts).toLocaleTimeString(); }
+      catch (_) { return ts || ""; }
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+    }
+
+    function renderControlButton(configured, enabled) {
+      const btn = document.getElementById("control-btn");
+      const pill = document.getElementById("status-pill");
+      const text = document.getElementById("status-text");
+      if (!configured) {
+        btn.disabled = true;
+        btn.textContent = "Configure paths first";
+        btn.className = "control-btn stopped";
+        pill.className = "status-pill offline";
+        text.textContent = "Not configured";
+        return;
+      }
+      btn.disabled = controlBusy;
+      processingEnabled = enabled;
+      if (enabled) {
+        btn.textContent = "Stop processing";
+        btn.className = "control-btn running";
+        pill.className = "status-pill running";
+        text.textContent = "Processing enabled";
+      } else {
+        btn.textContent = "Start processing";
+        btn.className = "control-btn stopped";
+        pill.className = "status-pill paused";
+        text.textContent = "Processing paused";
+      }
+    }
+
+    async function toggleProcessing() {
+      if (controlBusy) return;
+      controlBusy = true;
+      renderControlButton(true, processingEnabled);
+      try {
+        const res = await fetch("/api/control", {
+          method: "POST",
+          headers: {"Content-Type": "application/json"},
+          body: JSON.stringify({processing_enabled: !processingEnabled}),
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        renderControlButton(data.configured, data.processing_enabled);
+        refreshActivity();
+      } catch (e) {
+        const err = document.getElementById("stats-error");
+        err.hidden = false;
+        err.textContent = `Control update failed: ${e.message}`;
+      } finally {
+        controlBusy = false;
+        renderControlButton(true, processingEnabled);
+      }
+    }
+
+    document.getElementById("control-btn").addEventListener("click", toggleProcessing);
+
+    async function kickstartPipeline() {
+      const btn = document.getElementById("kickstart-btn");
+      const result = document.getElementById("kickstart-result");
+      btn.disabled = true;
+      result.hidden = false;
+      result.className = "kickstart-result";
+      result.textContent = "Kickstarting workers and queues…";
+      try {
+        const res = await fetch("/api/pipeline/kickstart", { method: "POST" });
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.detail || `HTTP ${res.status}`);
+        }
+        renderControlButton(data.configured, data.control.processing_enabled);
+        const workerFailures = (data.actions || []).filter(
+          (action) => action.kind === "worker" && !action.already_running && !action.started
+        );
+        if (!data.ok || workerFailures.length) {
+          result.className = "kickstart-result warn";
+        } else {
+          result.className = "kickstart-result ok";
+        }
+        result.textContent = data.message || "Pipeline kickstarted.";
+        refreshActivity();
+        setTimeout(() => {
+          refreshStats();
+          refreshControl();
+          refreshActivity();
+        }, 2500);
+      } catch (e) {
+        result.className = "kickstart-result err";
+        result.textContent = `Kickstart failed: ${e.message}`;
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    document.getElementById("kickstart-btn").addEventListener("click", kickstartPipeline);
+
+    function setInvestigateMode(enabled) {
+      investigateMode = enabled;
+      const panel = document.getElementById("investigate-panel");
+      const btn = document.getElementById("investigate-btn");
+      const debugToggle = document.getElementById("debug-toggle");
+      panel.hidden = !enabled;
+      btn.classList.toggle("active", enabled);
+      if (enabled) {
+        showDebug = true;
+        if (debugToggle) debugToggle.checked = true;
+        lastActivityKeys = [];
+        refreshActivity();
+        renderInvestigation();
+      }
+    }
+
+    function buildInvestigationFindings(stats, entries) {
+      const findings = [];
+      if (!stats || !stats.configured) {
+        findings.push({ level: "warn", text: "Folder paths are not configured. Set them in Settings before the pipeline can run." });
+        return findings;
+      }
+
+      const workers = stats.workers || {};
+      for (const name of ["enhance", "ocr", "watch"]) {
+        const worker = workers[name];
+        if (!worker || !worker.alive) {
+          findings.push({ level: "err", text: `${name} worker is offline. Start packetpro-${name} or check systemd status.` });
+        } else if (worker.state === "paused") {
+          findings.push({ level: "warn", text: `${name} worker is alive but paused.` });
+        }
+      }
+
+      const control = stats.control || {};
+      const queues = stats.queues || {};
+      const pending = (queues.inbox || 0) + (queues.transformed_pending || 0) + (queues.import_pending || 0);
+      if (control.processing_enabled === false && pending > 0) {
+        findings.push({
+          level: "warn",
+          text: `Processing is paused with ${pending} item(s) waiting across inbox and OCR queue.`,
+        });
+      }
+
+      if ((queues.failed || 0) > 0) {
+        findings.push({
+          level: "warn",
+          text: `${queues.failed} file(s) are in the failed folder and may need manual review.`,
+        });
+      }
+
+      const watch = stats.watch || {};
+      if (watch.configured && !watch.available) {
+        findings.push({ level: "err", text: "Watch folder is configured but not accessible." });
+      } else if (watch.configured && (watch.pending || 0) > 0 && (watch.ocr_pending || 0) === 0) {
+        findings.push({
+          level: "warn",
+          text: `${watch.pending} watch-folder file(s) are eligible but not yet queued for OCR. Try Scan folder.`,
+        });
+      }
+
+      const backends = stats.ocr_backends || {};
+      if (backends.primary && !backends.primary.ok) {
+        findings.push({ level: "err", text: `Primary OCR backend unavailable: ${backends.primary.message || "check Ollama/PaddleOCR"}.` });
+      }
+      if (backends.secondary && !backends.secondary.ok) {
+        findings.push({ level: "warn", text: `Secondary OCR backend unavailable: ${backends.secondary.message || "check secondary GPU"}.` });
+      }
+
+      const ocrPending = queues.transformed_pending || 0;
+      const ocrRate = stats.rates?.ocr_per_minute_5m || 0;
+      if (ocrPending > 0 && ocrRate <= 0 && control.processing_enabled !== false) {
+        findings.push({
+          level: "warn",
+          text: `${ocrPending} OCR job(s) are queued but throughput is zero over the last 5 minutes.`,
+        });
+      }
+
+      const gpu = stats.gpu || {};
+      if (ocrPending > 0 && gpu.available && !(gpu.relevant_processes || []).length) {
+        findings.push({
+          level: "warn",
+          text: "OCR queue has work but no OCR-related GPU processes are running.",
+        });
+      }
+
+      const recentErrors = (entries || []).filter((entry) => {
+        const action = (entry.action || "").toLowerCase();
+        const message = (entry.message || "").toLowerCase();
+        return action === "error" || message.includes("failed") || message.includes("error");
+      }).slice(-5);
+      if (recentErrors.length) {
+        for (const entry of recentErrors) {
+          findings.push({
+            level: "err",
+            text: `${entry.worker || "system"}: ${entry.message}`,
+          });
+        }
+      }
+
+      if (!findings.length) {
+        findings.push({
+          level: "ok",
+          text: "No obvious pipeline issues detected. Workers are online and queues look healthy.",
+        });
+      }
+      return findings;
+    }
+
+    function renderInvestigation() {
+      if (!investigateMode) return;
+      const list = document.getElementById("investigate-findings");
+      const findings = buildInvestigationFindings(latestStats, latestActivity);
+      list.innerHTML = findings.map((item) =>
+        `<li class="${escapeHtml(item.level)}">${escapeHtml(item.text)}</li>`
+      ).join("");
+    }
+
+    function startInvestigation() {
+      setInvestigateMode(true);
+      document.getElementById("investigate-panel").scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+
+    document.getElementById("investigate-btn").addEventListener("click", () => {
+      setInvestigateMode(!investigateMode);
+      if (investigateMode) {
+        document.getElementById("investigate-panel").scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    });
+    document.getElementById("investigate-scroll-activity").addEventListener("click", () => {
+      document.getElementById("activity-sidebar").scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+    document.getElementById("investigate-scroll-workers").addEventListener("click", () => {
+      document.getElementById("workers-section").scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+
+    async function refreshControl() {
+      try {
+        const res = await fetch("/api/control");
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        renderControlButton(data.configured, data.processing_enabled);
+        const updated = document.getElementById("control-updated");
+        if (data.updated_at) {
+          updated.textContent = `Last changed ${formatTime(data.updated_at)}`;
+        } else {
+          updated.textContent = "";
+        }
+      } catch (_) {
+        renderControlButton(false, false);
+      }
+    }
+
+    async function scanWatchFolder() {
+      const btn = document.getElementById("watch-scan-btn");
+      const result = document.getElementById("watch-scan-result");
+      btn.disabled = true;
+      result.hidden = false;
+      result.textContent = "Starting scan…";
+      try {
+        const res = await fetch("/api/watch/scan", { method: "POST" });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
+        document.getElementById("stat-watch-pending").textContent = data.pending ?? 0;
+        document.getElementById("stat-watch-sub").textContent = data.started
+          ? "processing since watermark"
+          : (data.available ? "nothing new to process" : "folder unavailable");
+        result.textContent = data.message || "Scan requested.";
+        refreshActivity();
+        if (data.started) {
+          setTimeout(refreshStats, 3000);
+          setTimeout(refreshActivity, 3000);
+        }
+      } catch (e) {
+        result.textContent = `Scan failed: ${e.message}`;
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    document.getElementById("watch-scan-btn").addEventListener("click", scanWatchFolder);
+
+    function activityEntryKey(entry) {
+      return `${entry.ts}|${entry.worker}|${entry.action}|${entry.message}`;
+    }
+
+    function activityEntryHtml(entry) {
+      const worker = (entry.worker || "system").toLowerCase();
+      const action = (entry.action || "").toLowerCase();
+      const debugCls = action === "debug" ? " debug" : "";
+      return `<div class="activity-entry${debugCls}">
+        <div>
+          <span class="activity-time">${formatTime(entry.ts)}</span>
+          <span class="activity-worker ${worker}${debugCls}">${worker}</span>
+        </div>
+        <span class="activity-msg">${escapeHtml(entry.message || "")}</span>
+      </div>`;
+    }
+
+    function activityLogNearBottom(log, threshold = 48) {
+      return log.scrollHeight - log.scrollTop - log.clientHeight <= threshold;
+    }
+
+    function renderActivity(entries) {
+      const log = document.getElementById("activity-log");
+      if (!entries || !entries.length) {
+        log.innerHTML = '<div class="activity-empty">No activity yet.</div>';
+        lastActivityKeys = [];
+        return;
+      }
+      const keys = entries.map(activityEntryKey);
+      if (keys.join("\n") === lastActivityKeys.join("\n")) return;
+
+      const stickToBottom = activityLogNearBottom(log);
+      log.innerHTML = entries.map(activityEntryHtml).join("");
+      lastActivityKeys = keys;
+
+      if (stickToBottom) {
+        requestAnimationFrame(() => { log.scrollTop = log.scrollHeight; });
+      }
+    }
+
+    async function refreshActivity() {
+      try {
+        const debug = showDebug ? "1" : "0";
+        const res = await fetch(`/api/activity?limit=150&debug=${debug}`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        latestActivity = data.entries || [];
+        renderActivity(latestActivity);
+        renderInvestigation();
+        const updated = document.getElementById("activity-updated");
+        if (data.entries && data.entries.length) {
+          const latest = data.entries[data.entries.length - 1];
+          updated.textContent = `Updated ${formatTime(latest.ts)}`;
+        } else {
+          updated.textContent = "No entries";
+        }
+      } catch (e) {
+        document.getElementById("activity-log").innerHTML =
+          `<div class="activity-empty">Activity log unavailable: ${e.message}</div>`;
+      }
+    }
+
+    document.getElementById("debug-toggle").addEventListener("change", (event) => {
+      showDebug = event.target.checked;
+      lastActivityKeys = [];
+      refreshActivity();
+    });
+
+    function renderWorkerCard(name, data) {
+      const el = document.getElementById(`worker-${name}`);
+      if (!data || !data.alive) {
+        el.innerHTML = "<strong>Offline</strong><br>Worker is not running or heartbeat expired.";
+        return;
+      }
+      const state = escapeHtml(data.state || "unknown");
+      const pid = data.pid ? `PID ${escapeHtml(data.pid)}` : "PID unknown";
+      const file = data.file
+        ? `<br>Current file: <strong>${escapeHtml(data.file)}</strong>`
+        : "";
+      el.innerHTML = `<strong>${state}</strong> · ${pid}${file}`;
+    }
+
+    function backendChip(label, backend) {
+      if (!backend) return `<span class="chip off">${label}: unknown</span>`;
+      const ok = backend.ok;
+      const cls = ok ? "ok" : "off";
+      const msg = backend.message || (ok ? "ready" : "unavailable");
+      const model = backend.model ? ` · ${backend.model}` : "";
+      return `<span class="chip ${cls}">${label}: ${msg}${model}</span>`;
+    }
+
+    const speedometerArc = document.getElementById("speedometer-arc-fill");
+    const speedometerNeedle = document.getElementById("speedometer-needle");
+    const speedometerArcLength = speedometerArc ? speedometerArc.getTotalLength() : 0;
+
+    (function initSpeedometerTicks() {
+      const tickGroup = document.getElementById("speedometer-ticks");
+      if (!tickGroup) return;
+      const cx = 100, cy = 95, outer = 76, inner = 66;
+      for (let i = 0; i <= 10; i++) {
+        const angle = Math.PI + (i / 10) * Math.PI;
+        const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+        line.setAttribute("x1", String(cx + Math.cos(angle) * inner));
+        line.setAttribute("y1", String(cy + Math.sin(angle) * inner));
+        line.setAttribute("x2", String(cx + Math.cos(angle) * outer));
+        line.setAttribute("y2", String(cy + Math.sin(angle) * outer));
+        line.setAttribute("class", "speedometer-tick");
+        tickGroup.appendChild(line);
+      }
+    })();
+
+    function gaugeMaxForRate(rate) {
+      const rounded = Math.ceil(Math.max(rate, 1) * 1.25);
+      return Math.max(10, Math.ceil(rounded / 5) * 5);
+    }
+
+    function renderCompletionEta(completion) {
+      const etaEl = document.getElementById("stat-eta");
+      const subEl = document.getElementById("stat-eta-sub");
+      const info = completion || {};
+      etaEl.textContent = info.eta_hms || "--:--:--";
+      const ocrPending = Number(info.ocr_pending) || 0;
+      const importPending = Number(info.import_pending) || 0;
+      const totalPending = ocrPending + importPending;
+      if (totalPending <= 0) { subEl.textContent = "queue empty"; return; }
+      if (info.processing_enabled === false) { subEl.textContent = "processing paused"; return; }
+      if (info.eta_seconds == null) { subEl.textContent = "waiting for OCR speed"; return; }
+      const parts = [];
+      if (importPending > 0) parts.push(`${importPending} to import`);
+      if (ocrPending > 0) parts.push(`${ocrPending} in OCR queue`);
+      subEl.textContent = parts.join(" · ");
+    }
+
+    function renderOcrSpeedometer(rate1m, rate5m) {
+      const value = Number(rate1m) || 0;
+      const avg5m = Number(rate5m) || 0;
+      const max = gaugeMaxForRate(Math.max(value, avg5m));
+      const ratio = Math.max(0, Math.min(1, value / max));
+      const angle = -90 + ratio * 180;
+      document.getElementById("speedometer-value").textContent = value.toFixed(1);
+      document.getElementById("speedometer-max").textContent = String(max);
+      document.getElementById("speedometer-sub").textContent =
+        `5 min average: ${avg5m.toFixed(1)} images / min`;
+      if (speedometerArc && speedometerArcLength > 0) {
+        speedometerArc.style.strokeDasharray = String(speedometerArcLength);
+        speedometerArc.style.strokeDashoffset = String(speedometerArcLength * (1 - ratio));
+      }
+      if (speedometerNeedle) {
+        speedometerNeedle.style.transform = `rotate(${angle}deg)`;
+      }
+    }
+
+    function renderStats(data) {
+      latestStats = data;
+      const err = document.getElementById("stats-error");
+      const watchCard = document.getElementById("stat-watch-card");
+      if (!data.configured) {
+        renderOcrSpeedometer(0, 0);
+        renderCompletionEta(null);
+        ["stat-inbox", "stat-queue", "stat-indexed", "stat-throughput", "stat-duplicates"].forEach(id => {
+          document.getElementById(id).textContent = "-";
+        });
+        watchCard.hidden = true;
+        renderWorkerCard("enhance", null);
+        renderWorkerCard("ocr", null);
+        renderWorkerCard("watch", null);
+        document.getElementById("ocr-backends").innerHTML =
+          '<span class="chip off">configure paths in settings</span>';
+        renderInvestigation();
+        return;
+      }
+
+      document.getElementById("stat-inbox").textContent = data.queues.inbox;
+      const ocrPending = data.queues.transformed_pending;
+      const watchOcrPending = data.queues.watch_ocr_pending ?? 0;
+      document.getElementById("stat-queue").textContent = ocrPending;
+      document.getElementById("stat-queue-sub").textContent =
+        watchOcrPending > 0 && watchOcrPending !== ocrPending
+          ? `${watchOcrPending} from watch folder`
+          : "pending OCR jobs";
+
+      const dbStats = data.database || {};
+      const indexed = dbStats.indexed_documents ?? 0;
+      const sources = dbStats.indexed_sources ?? 0;
+      document.getElementById("stat-indexed").textContent = indexed;
+      document.getElementById("stat-indexed-sub").textContent =
+        indexed === sources
+          ? "images in database"
+          : `${sources} source file${sources === 1 ? "" : "s"} · ${indexed} page${indexed === 1 ? "" : "s"}`;
+
+      const totals = data.totals || {};
+      document.getElementById("stat-throughput").textContent =
+        `${totals.enhanced_events_1h ?? 0} / ${totals.ocr_complete_events_1h ?? 0}`;
+      document.getElementById("stat-duplicates").textContent = totals.duplicate_skipped_1h ?? 0;
+
+      renderOcrSpeedometer(data.rates.ocr_per_minute_1m, data.rates.ocr_per_minute_5m);
+      renderCompletionEta(data.completion);
+
+      const watch = data.watch || {};
+      if (watch.configured) {
+        watchCard.hidden = false;
+        document.getElementById("stat-watch-label").textContent = watch.folder_name || "Watch folder";
+        document.getElementById("stat-watch-pending").textContent = watch.pending ?? 0;
+        document.getElementById("stat-watch-sub").textContent = watch.available
+          ? ((watch.ocr_pending ?? 0) > 0
+            ? `${watch.ocr_pending} queued for OCR`
+            : "eligible since scan start")
+          : "folder unavailable";
+      } else {
+        watchCard.hidden = true;
+      }
+
+      const workers = data.workers || {};
+      renderWorkerCard("enhance", workers.enhance);
+      renderWorkerCard("ocr", workers.ocr);
+      renderWorkerCard("watch", workers.watch);
+
+      const backends = data.ocr_backends || {};
+      const engine = backends.engine || "unknown";
+      let backendHtml = `<span class="chip ok">Engine: ${engine}</span>`;
+      backendHtml += backendChip("Primary", backends.primary);
+      if (backends.secondary) backendHtml += backendChip("Secondary", backends.secondary);
+      document.getElementById("ocr-backends").innerHTML = backendHtml;
+
+      const gpu = data.gpu || {};
+      const gpuEl = document.getElementById("gpu-chips");
+      const procEl = document.getElementById("proc-chips");
+      if (!gpu.available) {
+        gpuEl.innerHTML = '<span class="chip off">no NVIDIA GPU detected</span>';
+        procEl.innerHTML = "";
+      } else {
+        gpuEl.innerHTML = (gpu.gpus || []).map(g =>
+          `<span class="chip gpu">GPU ${g.index}: ${g.utilization_pct}% · ${g.memory_used_mib}/${g.memory_total_mib} MiB</span>`
+        ).join("");
+        const procs = gpu.relevant_processes || [];
+        procEl.innerHTML = procs.length
+          ? procs.map(p =>
+              `<span class="chip gpu">GPU ${p.gpu_index} · ${p.name} · pid ${p.pid} · ${p.memory_mib} MiB</span>`
+            ).join("")
+          : '<span class="chip off">no OCR GPU processes running</span>';
+      }
+
+      if (data.ts) {
+        document.getElementById("stats-updated").textContent =
+          `Updated ${formatTime(data.ts)}`;
+      }
+      err.hidden = true;
+      renderInvestigation();
+    }
+
+    async function refreshStats() {
+      try {
+        const res = await fetch("/api/stats");
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        renderStats(await res.json());
+      } catch (e) {
+        const err = document.getElementById("stats-error");
+        err.hidden = false;
+        err.textContent = `Stats unavailable: ${e.message}`;
+      }
+    }
+
+    async function refreshPaths() {
+      try {
+        const res = await fetch("/api/settings");
+        if (!res.ok) return;
+        const data = await res.json();
+        const paths = data.resolved_paths || {};
+        const set = (id, value) => {
+          document.getElementById(id).textContent = value || "—";
+        };
+        set("path-inbox", paths.inbox);
+        set("path-transformed", paths.transformed);
+        set("path-archive", paths.archive);
+        set("path-failed", paths.failed);
+        set("path-database", paths.database);
+        set("path-watch", paths.watch_folder);
+      } catch (_) {}
+    }
+
+    refreshControl();
+    refreshStats();
+    refreshActivity();
+    refreshPaths();
+    if (investigateMode) {
+      startInvestigation();
+    }
+    setInterval(() => { refreshStats(); refreshControl(); }, 2000);
+    setInterval(refreshActivity, 2000);
+  </script>
+</body>
+</html>

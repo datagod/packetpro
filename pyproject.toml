@@ -45,3 +45,6 @@ Issues = "https://github.com/datagod/packetpro/issues"
 [tool.setuptools.packages.find]
 where = ["src"]
 include = ["packetpro*"]
+
+[tool.setuptools.package-data]
+packetpro = ["web/templates/*.html", "web/static/**/*"]

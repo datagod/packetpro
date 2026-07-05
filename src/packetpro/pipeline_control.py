@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -12,6 +13,12 @@ from packetpro.utils import atomic_write_text, write_json
 
 ACTIVITY_MAX_ENTRIES = 500
 ACTIVITY_DEFAULT_LIMIT = 150
+
+WORKER_SERVICES: tuple[tuple[str, str], ...] = (
+    ("enhance", "packetpro-enhance"),
+    ("ocr", "packetpro-ocr"),
+    ("watch", "packetpro-watch"),
+)
 
 
 def _control_dir(config: AppConfig) -> Path:
@@ -85,6 +92,101 @@ def set_processing_enabled(config: AppConfig, enabled: bool) -> dict[str, Any]:
         message = f"Processing stopped — {inbox_count} file(s) waiting in inbox"
     log_activity(config, worker="system", action="control", message=message)
     return get_control_state(config)
+
+
+def _start_worker_service(service: str) -> tuple[bool, str]:
+    try:
+        result = subprocess.run(
+            ["systemctl", "--user", "start", service],
+            capture_output=True,
+            text=True,
+            timeout=15,
+            check=False,
+        )
+    except FileNotFoundError:
+        return False, "systemctl not available"
+    except subprocess.TimeoutExpired:
+        return False, "systemctl timed out"
+
+    if result.returncode == 0:
+        return True, "started"
+    detail = (result.stderr or result.stdout or "start failed").strip()
+    return False, detail
+
+
+def kickstart_pipeline(config: AppConfig) -> dict[str, Any]:
+    """Enable processing, start offline workers, and queue a watch-folder scan."""
+    from packetpro.stats import read_heartbeat
+    from packetpro.workers.watch_worker import request_watch_folder_scan
+
+    actions: list[dict[str, Any]] = []
+    summary_parts: list[str] = []
+    workers_failed = False
+
+    for worker, service in WORKER_SERVICES:
+        heartbeat = read_heartbeat(config, worker)
+        if heartbeat.get("alive"):
+            actions.append(
+                {
+                    "kind": "worker",
+                    "worker": worker,
+                    "service": service,
+                    "started": False,
+                    "already_running": True,
+                }
+            )
+            continue
+
+        started, detail = _start_worker_service(service)
+        actions.append(
+            {
+                "kind": "worker",
+                "worker": worker,
+                "service": service,
+                "started": started,
+                "already_running": False,
+                "detail": detail,
+            }
+        )
+        if started:
+            summary_parts.append(f"started {service}")
+        else:
+            workers_failed = True
+            summary_parts.append(f"could not start {service}")
+
+    already_enabled = is_processing_enabled(config)
+    if not already_enabled:
+        set_processing_enabled(config, True)
+        summary_parts.append("enabled processing")
+    else:
+        summary_parts.append("processing already enabled")
+    actions.append(
+        {
+            "kind": "processing",
+            "enabled": True,
+            "already_enabled": already_enabled,
+        }
+    )
+
+    watch_scan = request_watch_folder_scan(config)
+    actions.append({"kind": "watch_scan", **watch_scan})
+    if watch_scan.get("started"):
+        summary_parts.append(watch_scan.get("message", "watch scan queued"))
+    elif watch_scan.get("configured"):
+        summary_parts.append(watch_scan.get("message", "watch folder checked"))
+
+    message = "Kickstarted pipeline"
+    if summary_parts:
+        message = f"{message} — {'; '.join(summary_parts)}"
+    log_activity(config, worker="system", action="kickstart", message=message)
+
+    return {
+        "ok": not workers_failed,
+        "message": message,
+        "actions": actions,
+        "control": get_control_state(config),
+        "watch_scan": watch_scan,
+    }
 
 
 def log_debug(

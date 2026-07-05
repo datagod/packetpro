@@ -280,7 +280,7 @@ def _count_pending_jobs(folder: Path) -> int:
     return count
 
 
-def _read_heartbeat(config: AppConfig, worker: str) -> dict[str, Any]:
+def read_heartbeat(config: AppConfig, worker: str) -> dict[str, Any]:
     path = _heartbeat_path(config, worker)
     if not path.is_file():
         return {"worker": worker, "state": "offline", "alive": False}
@@ -443,9 +443,9 @@ def collect_stats(config: AppConfig) -> dict[str, Any]:
             "duplicate_skipped_1h": sum(1 for e in events if e.get("type") == "duplicate_skipped"),
         },
         "workers": {
-            "enhance": _read_heartbeat(config, "enhance"),
-            "ocr": _read_heartbeat(config, "ocr"),
-            "watch": _read_heartbeat(config, "watch"),
+            "enhance": read_heartbeat(config, "enhance"),
+            "ocr": read_heartbeat(config, "ocr"),
+            "watch": read_heartbeat(config, "watch"),
         },
         "watch": read_watch_queue_stats(config),
         "ocr_backends": describe_ocr_backends(config.ocr),

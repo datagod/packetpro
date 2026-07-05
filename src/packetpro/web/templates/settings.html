@@ -30,8 +30,18 @@
       margin: 0 auto;
       padding: 1.25rem clamp(0.5rem, 1vw, 0.85rem) 2rem;
     }
-    nav { margin-bottom: 1.5rem; }
-    nav a { color: var(--accent); text-decoration: none; margin-right: 1rem; }
+    .site-nav { margin-bottom: 1.5rem; }
+    .site-nav a {
+      color: var(--accent);
+      text-decoration: none;
+      margin-right: 1.25rem;
+      font-weight: 500;
+    }
+    .site-nav a.active {
+      color: var(--text);
+      border-bottom: 2px solid var(--accent);
+      padding-bottom: 0.15rem;
+    }
     h1 { margin: 0 0 0.35rem; }
     p { color: var(--muted); line-height: 1.5; }
     .card {
@@ -307,10 +317,7 @@
 </head>
 <body>
   <div class="wrap">
-    <nav>
-      <a href="/">Search</a>
-      <a href="/settings">Settings</a>
-    </nav>
+    {% include "_nav.html" %}
 
     <h1>Folder locations</h1>
     <p>

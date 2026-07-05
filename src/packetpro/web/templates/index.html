@@ -4,6 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>PacketPro</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Antonio:wght@400;700&family=M+PLUS+Rounded+1c:wght@400;700&family=Press+Start+2P&family=Share+Tech+Mono&family=Zen+Maru+Gothic:wght@400;700&display=swap">
   <style>
     :root {
       color-scheme: light dark;
@@ -23,66 +24,101 @@
       color: var(--text);
       min-height: 100vh;
     }
-    .page-layout {
-      display: flex;
-      align-items: stretch;
+    .wrap {
       width: 100%;
-      margin: 0;
+      max-width: min(1100px, 100%);
+      margin: 0 auto;
       padding: 1.25rem clamp(0.5rem, 1vw, 0.85rem) 2rem;
-      min-height: calc(100vh - 2rem);
-      gap: 0;
     }
-    .stats-sidebar,
-    .activity-sidebar {
-      flex-shrink: 0;
-      position: sticky;
-      top: 1.25rem;
-      height: calc(100vh - 2.5rem);
-      min-height: 14rem;
-      overflow: hidden;
-      display: flex;
-      flex-direction: column;
+    .site-nav { margin-bottom: 1.5rem; }
+    .site-nav a {
+      color: var(--accent);
+      text-decoration: none;
+      margin-right: 1.25rem;
+      font-weight: 500;
     }
-    .stats-sidebar {
-      width: 18rem;
-      min-width: 11rem;
-      max-width: 40vw;
-    }
-    .activity-sidebar {
-      width: clamp(18rem, 22vw, 28rem);
-      min-width: 11rem;
-      max-width: 40vw;
-    }
-    .main-col {
-      flex: 1 1 auto;
-      min-width: 14rem;
-      max-height: calc(100vh - 2.5rem);
-      overflow-y: auto;
-      padding: 0 0.85rem;
-    }
-    .col-resizer {
-      flex-shrink: 0;
-      width: 7px;
-      margin: 0 0.1rem;
-      cursor: col-resize;
-      border-radius: 4px;
-      align-self: stretch;
-      background: transparent;
-      transition: background 0.15s ease;
-    }
-    .col-resizer:hover,
-    .col-resizer.dragging {
-      background: rgba(77, 163, 255, 0.28);
+    .site-nav a.active {
+      color: var(--text);
+      border-bottom: 2px solid var(--accent);
+      padding-bottom: 0.15rem;
     }
     header h1 {
       margin: 0 0 0.25rem;
       font-size: 2rem;
       letter-spacing: 0.02em;
     }
-    header p {
-      margin: 0 0 1.5rem;
+    .header-top {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .header-copy p {
+      margin: 0;
       color: var(--muted);
     }
+    .investigate-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.55rem;
+      padding: 0.65rem 1rem;
+      border-radius: 10px;
+      border: 1px solid rgba(77, 163, 255, 0.45);
+      background: rgba(77, 163, 255, 0.12);
+      color: #b9d9ff;
+      font-weight: 600;
+      font-size: 0.92rem;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+    .investigate-btn:hover {
+      background: rgba(77, 163, 255, 0.22);
+      color: var(--text);
+    }
+    .investigate-dot {
+      width: 0.55rem;
+      height: 0.55rem;
+      border-radius: 50%;
+      background: var(--muted);
+      flex-shrink: 0;
+    }
+    .investigate-dot.running { background: #7dffb2; box-shadow: 0 0 8px rgba(125, 255, 178, 0.55); }
+    .investigate-dot.paused { background: #ff8f8f; }
+    .investigate-dot.offline { background: var(--muted); }
+    .header-actions {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.65rem;
+    }
+    .kickstart-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.45rem;
+      padding: 0.65rem 1rem;
+      border-radius: 10px;
+      border: 1px solid #3d8f67;
+      background: rgba(45, 90, 61, 0.55);
+      color: #9dffc8;
+      font-weight: 700;
+      font-size: 0.92rem;
+      cursor: pointer;
+    }
+    .kickstart-btn:hover:not(:disabled) {
+      background: rgba(45, 90, 61, 0.85);
+      color: #d8ffe8;
+    }
+    .kickstart-btn:disabled { opacity: 0.55; cursor: wait; }
+    .kickstart-result {
+      width: 100%;
+      font-size: 0.88rem;
+      margin-top: 0.35rem;
+    }
+    .kickstart-result.ok { color: #9dffc8; }
+    .kickstart-result.warn { color: #ffd28a; }
+    .kickstart-result.err { color: #ff8f8f; }
     form {
       display: flex;
       gap: 0.75rem;
@@ -97,6 +133,15 @@
       color: var(--text);
       font-size: 1rem;
     }
+    .limit-select {
+      padding: 0.85rem 0.75rem;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: var(--panel);
+      color: var(--text);
+      font-size: 0.95rem;
+      min-width: 5.5rem;
+    }
     button {
       padding: 0.85rem 1.2rem;
       border-radius: 10px;
@@ -106,9 +151,42 @@
       font-weight: 600;
       cursor: pointer;
     }
+    .help-btn {
+      width: 2.75rem;
+      padding: 0.85rem 0;
+      background: transparent;
+      color: var(--muted);
+      border: 1px solid var(--border);
+      font-size: 1.05rem;
+      line-height: 1;
+    }
+    .help-btn:hover {
+      color: var(--text);
+      border-color: rgba(77, 163, 255, 0.45);
+      background: rgba(77, 163, 255, 0.08);
+    }
     .meta {
       color: var(--muted);
       margin-bottom: 1rem;
+    }
+    .results-viewport {
+      --result-bg: rgba(26, 35, 50, 0.75);
+      --result-border: #2b3a4f;
+      --ocr-bg: rgba(15, 20, 25, 0.45);
+      --ocr-text: #d5deea;
+      --ocr-font: inherit;
+      --ocr-size: 0.95rem;
+      --ocr-shadow: none;
+      --title-color: #e7ecf3;
+      --title-font: inherit;
+      --mark-bg: #ffe08a;
+      --mark-fg: #111;
+      --actions-bg: rgba(26, 35, 50, 0.75);
+      --actions-border: #2b3a4f;
+      --empty-color: #9aa7b8;
+      --thumb-border: #2b3a4f;
+      --thumb-bg: #111;
+      position: relative;
     }
     .result-actions {
       display: flex;
@@ -119,7 +197,10 @@
       padding: 0.75rem 1rem;
       border: 1px solid var(--border);
       border-radius: 10px;
-      background: rgba(26, 35, 50, 0.75);
+    }
+    .results-viewport .result-actions {
+      background: var(--actions-bg);
+      border-color: var(--actions-border);
     }
     .result-actions .action-btn {
       padding: 0.45rem 0.9rem;
@@ -151,7 +232,10 @@
       margin-bottom: 1rem;
       border: 1px solid var(--border);
       border-radius: 12px;
-      background: rgba(26, 35, 50, 0.75);
+    }
+    .results-viewport .result {
+      background: var(--result-bg);
+      border-color: var(--result-border);
     }
     .thumb {
       width: 100%;
@@ -159,7 +243,105 @@
       object-fit: cover;
       border-radius: 8px;
       border: 1px solid var(--border);
-      background: #111;
+    }
+    .results-viewport .thumb {
+      border-color: var(--thumb-border);
+      background: var(--thumb-bg);
+    }
+    .thumb-link {
+      display: block;
+      cursor: zoom-in;
+    }
+    .result.is-image-active {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+    }
+    .image-viewer {
+      position: fixed;
+      inset: 0;
+      z-index: 1100;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 1.5rem;
+      background: rgba(4, 8, 14, 0.88);
+    }
+    .image-viewer[hidden] { display: none; }
+    .image-viewer-stage {
+      flex: 1;
+      min-height: 0;
+      width: min(100%, 72rem);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .image-viewer-img {
+      max-width: 100%;
+      max-height: calc(100vh - 8rem);
+      object-fit: contain;
+      border-radius: 8px;
+      box-shadow: 0 18px 48px rgba(0, 0, 0, 0.55);
+    }
+    .image-viewer-caption {
+      margin-top: 0.85rem;
+      max-width: min(100%, 72rem);
+      color: #e7ecf3;
+      font-size: 0.92rem;
+      text-align: center;
+      line-height: 1.4;
+    }
+    .image-viewer-counter {
+      margin-top: 0.35rem;
+      color: var(--muted);
+      font-size: 0.82rem;
+      font-variant-numeric: tabular-nums;
+    }
+    .image-viewer-close,
+    .image-viewer-nav {
+      position: absolute;
+      border: 1px solid var(--border);
+      background: rgba(26, 35, 50, 0.92);
+      color: var(--text);
+      cursor: pointer;
+      line-height: 1;
+    }
+    .image-viewer-close {
+      top: 1rem;
+      right: 1rem;
+      width: 2.5rem;
+      height: 2.5rem;
+      border-radius: 8px;
+      font-size: 1.35rem;
+    }
+    .image-viewer-nav {
+      top: 50%;
+      transform: translateY(-50%);
+      width: 2.75rem;
+      height: 3.25rem;
+      border-radius: 10px;
+      font-size: 2rem;
+      padding: 0;
+    }
+    .image-viewer-nav:hover,
+    .image-viewer-close:hover {
+      border-color: rgba(77, 163, 255, 0.45);
+      color: #b9d9ff;
+    }
+    .image-viewer-nav:disabled {
+      opacity: 0.35;
+      cursor: not-allowed;
+    }
+    .image-viewer-nav.prev { left: 1rem; }
+    .image-viewer-nav.next { right: 1rem; }
+    .image-viewer-hint {
+      position: absolute;
+      bottom: 1rem;
+      left: 50%;
+      transform: translateX(-50%);
+      color: var(--muted);
+      font-size: 0.78rem;
+      letter-spacing: 0.02em;
     }
     .title {
       font-weight: 600;
@@ -170,6 +352,11 @@
       gap: 0.75rem;
     }
     .title-text { min-width: 0; }
+    .results-viewport .title,
+    .results-viewport .title-text {
+      color: var(--title-color);
+      font-family: var(--title-font);
+    }
     .delete-btn {
       flex-shrink: 0;
       padding: 0.2rem 0.55rem;
@@ -189,30 +376,37 @@
     }
     .ocr-text {
       line-height: 1.5;
-      color: #d5deea;
       white-space: pre-wrap;
       word-break: break-word;
-      font-size: 0.95rem;
       max-height: 480px;
       overflow-y: auto;
       padding: 0.65rem 0.75rem;
       border-radius: 8px;
-      background: rgba(15, 20, 25, 0.45);
       border: 1px solid var(--border);
     }
+    .results-viewport .ocr-text {
+      color: var(--ocr-text);
+      background: var(--ocr-bg);
+      border-color: var(--result-border);
+      font-family: var(--ocr-font);
+      font-size: var(--ocr-size);
+      text-shadow: var(--ocr-shadow);
+    }
     mark {
-      background: var(--mark);
-      color: #111;
       padding: 0 0.15rem;
       border-radius: 3px;
     }
+    .results-viewport mark {
+      background: var(--mark-bg);
+      color: var(--mark-fg);
+    }
     .empty {
-      color: var(--muted);
       padding: 2rem 0;
       text-align: center;
     }
-    nav { margin-bottom: 1rem; }
-    nav a { color: var(--accent); text-decoration: none; margin-right: 1rem; }
+    .results-viewport .empty {
+      color: var(--empty-color);
+    }
     .banner {
       margin-bottom: 1rem;
       padding: 0.85rem 1rem;
@@ -220,401 +414,140 @@
       background: rgba(77, 163, 255, 0.12);
       color: #b9d9ff;
     }
+    .banner.err {
+      background: rgba(255, 143, 143, 0.12);
+      color: #ffc7c7;
+      border: 1px solid rgba(255, 143, 143, 0.25);
+    }
     .banner a { color: var(--accent); }
-    .stats-panel,
-    .activity-panel {
+    .help-modal {
+      position: fixed;
+      inset: 0;
+      z-index: 1000;
       display: flex;
-      flex-direction: column;
-      flex: 1;
-      min-height: 0;
-      padding: 1rem;
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      background: rgba(26, 35, 50, 0.75);
-    }
-    .stats-panel {
-      overflow-y: auto;
-      scrollbar-width: thin;
-      scrollbar-color: rgba(154, 167, 184, 0.42) transparent;
-    }
-    .stats-panel::-webkit-scrollbar { width: 5px; }
-    .stats-panel::-webkit-scrollbar-thumb {
-      background: rgba(154, 167, 184, 0.38);
-      border-radius: 999px;
-    }
-    .stats-sidebar .stats-grid {
-      grid-template-columns: 1fr;
-    }
-    .stats-sidebar .stats-head {
-      flex-direction: column;
-      align-items: flex-start;
-      gap: 0.5rem;
-    }
-    .stats-sidebar .control-btn {
-      width: 100%;
-      text-align: center;
-    }
-    .stats-head {
-      display: flex;
-      justify-content: space-between;
       align-items: center;
-      margin-bottom: 0.75rem;
-    }
-    .stats-head h2 {
-      margin: 0;
-      font-size: 1.1rem;
-    }
-    .live-dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      background: var(--accent);
-      display: inline-block;
-      margin-right: 0.4rem;
-      animation: pulse 2s infinite;
-    }
-    @keyframes pulse {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.35; }
-    }
-    .stats-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-      gap: 0.75rem;
-      margin-bottom: 0.75rem;
-    }
-    .stat-card {
-      padding: 0.75rem;
-      border-radius: 8px;
-      background: var(--panel);
-      border: 1px solid var(--border);
-    }
-    .stat-label { color: var(--muted); font-size: 0.82rem; }
-    .stat-value { font-size: 1.45rem; font-weight: 700; margin-top: 0.15rem; }
-    .stat-value.time-eta {
-      font-size: 1.35rem;
-      font-variant-numeric: tabular-nums;
-      letter-spacing: 0.04em;
-    }
-    .stat-sub { color: var(--muted); font-size: 0.78rem; margin-top: 0.15rem; }
-    .watch-scan-btn {
-      margin-top: 0.55rem;
-      width: 100%;
-      padding: 0.45rem 0.65rem;
-      border-radius: 8px;
-      border: 1px solid var(--border);
-      background: rgba(77, 163, 255, 0.14);
-      color: var(--accent);
-      font-weight: 600;
-      font-size: 0.78rem;
-      cursor: pointer;
-    }
-    .watch-scan-btn:hover:not(:disabled) {
-      background: rgba(77, 163, 255, 0.24);
-    }
-    .watch-scan-btn:disabled {
-      opacity: 0.55;
-      cursor: wait;
-    }
-    .watch-scan-result {
-      color: var(--muted);
-      font-size: 0.74rem;
-      margin-top: 0.35rem;
-      line-height: 1.35;
-    }
-    .speedometer-card {
-      grid-column: 1 / -1;
-    }
-    .speedometer {
-      margin-top: 0.35rem;
-    }
-    .speedometer-svg {
-      width: 100%;
-      height: auto;
-      display: block;
-    }
-    .speedometer-arc-bg {
-      fill: none;
-      stroke: rgba(154, 167, 184, 0.2);
-      stroke-width: 10;
-      stroke-linecap: round;
-    }
-    .speedometer-arc-fill {
-      fill: none;
-      stroke: url(#speedometerGradient);
-      stroke-width: 10;
-      stroke-linecap: round;
-      transition: stroke-dashoffset 0.45s ease;
-    }
-    .speedometer-tick {
-      stroke: rgba(154, 167, 184, 0.35);
-      stroke-width: 1.5;
-    }
-    .speedometer-needle {
-      stroke: #ff6b6b;
-      stroke-width: 3;
-      stroke-linecap: round;
-      transform-origin: 100px 95px;
-      transition: transform 0.45s ease;
-    }
-    .speedometer-hub {
-      fill: var(--text);
-    }
-    .speedometer-readout {
-      display: flex;
-      align-items: baseline;
       justify-content: center;
-      gap: 0.4rem;
-      margin-top: 0.2rem;
+      padding: 1.5rem;
+      background: rgba(4, 8, 14, 0.72);
+    }
+    .help-modal[hidden] { display: none; }
+    .help-dialog {
+      position: relative;
+      width: min(38rem, 100%);
+      max-height: calc(100vh - 3rem);
+      overflow-y: auto;
+      padding: 1.25rem 1.35rem 1.1rem;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      background: var(--panel);
+      box-shadow: 0 18px 48px rgba(0, 0, 0, 0.45);
+    }
+    .help-dialog h2 {
+      margin: 0 2rem 0.35rem 0;
+      font-size: 1.35rem;
+    }
+    .help-dialog p {
+      margin: 0 0 1rem;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+    .help-dialog h3 {
+      margin: 1.1rem 0 0.45rem;
+      font-size: 0.95rem;
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+      color: #b9d9ff;
+    }
+    .help-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 0.35rem;
+      font-size: 0.95rem;
+    }
+    .help-table th,
+    .help-table td {
+      padding: 0.55rem 0.65rem;
+      border-bottom: 1px solid var(--border);
+      text-align: left;
+      vertical-align: top;
+    }
+    .help-table th {
+      color: var(--muted);
+      font-weight: 600;
+      width: 42%;
+    }
+    .help-table code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 0.9em;
+      color: #d8e8ff;
+    }
+    .help-close {
+      position: absolute;
+      top: 1rem;
+      right: 1rem;
+      width: 2.25rem;
+      height: 2.25rem;
+      padding: 0;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--muted);
+      font-size: 1.25rem;
       line-height: 1;
     }
-    .speedometer-value {
-      font-size: 1.55rem;
-      font-weight: 700;
-      font-variant-numeric: tabular-nums;
+    .help-close:hover {
       color: var(--text);
+      border-color: rgba(77, 163, 255, 0.45);
     }
-    .speedometer-unit {
-      font-size: 0.78rem;
+    .result-actions .result-theme-picker {
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+      font-size: 0.72rem;
       color: var(--muted);
-      letter-spacing: 0.02em;
-      white-space: nowrap;
-    }
-    .speedometer-scale {
-      display: flex;
-      justify-content: space-between;
-      font-size: 0.68rem;
-      color: var(--muted);
-      margin-top: 0.35rem;
-      padding: 0 0.35rem;
-    }
-    .worker-row, .gpu-row, .proc-row {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.5rem;
-      margin-top: 0.5rem;
-    }
-    .chip {
-      padding: 0.35rem 0.65rem;
-      border-radius: 999px;
-      font-size: 0.82rem;
-      border: 1px solid var(--border);
-      background: rgba(15, 20, 25, 0.55);
-    }
-    .chip.ok { border-color: #3d8f67; color: #9dffc8; }
-    .chip.busy { border-color: #b38c2a; color: #ffe08a; }
-    .chip.off { border-color: #7a3b3b; color: #ffb0b0; }
-    .chip.gpu { border-color: #3d689f; color: #b9d9ff; }
-    .stats-error { color: #ffb0b0; font-size: 0.9rem; margin-top: 0.5rem; }
-    .control-btn {
-      padding: 0.55rem 1rem;
-      border-radius: 8px;
-      border: 1px solid var(--border);
-      font-weight: 600;
-      cursor: pointer;
-      font-size: 0.9rem;
-    }
-    .control-btn.running {
-      background: #2d5a3d;
-      color: #9dffc8;
-      border-color: #3d8f67;
-    }
-    .control-btn.stopped {
-      background: #5a2d2d;
-      color: #ffb0b0;
-      border-color: #7a3b3b;
-    }
-    .control-btn:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
-    }
-    .activity-panel {
-      position: relative;
-      padding-bottom: 1.15rem;
-    }
-    .activity-log {
-      flex: 1;
-      min-height: 0;
-      overflow-y: auto;
-      overflow-x: hidden;
-      margin-top: 0.65rem;
-      margin-right: -0.15rem;
-      padding-right: 0.35rem;
-      font-size: 0.82rem;
-      line-height: 1.45;
-      scroll-behavior: smooth;
-      overscroll-behavior: contain;
-      -webkit-overflow-scrolling: touch;
-      scrollbar-width: thin;
-      scrollbar-color: rgba(154, 167, 184, 0.42) transparent;
-    }
-    .activity-log::-webkit-scrollbar {
-      width: 5px;
-    }
-    .activity-log::-webkit-scrollbar-track {
-      background: transparent;
-    }
-    .activity-log::-webkit-scrollbar-thumb {
-      background: rgba(154, 167, 184, 0.38);
-      border-radius: 999px;
-    }
-    .activity-log::-webkit-scrollbar-thumb:hover {
-      background: rgba(154, 167, 184, 0.62);
-    }
-    .activity-entry {
-      padding: 0.45rem 0.4rem;
-      border-bottom: 1px solid rgba(43, 58, 79, 0.55);
-      display: flex;
-      flex-direction: column;
-      gap: 0.15rem;
-    }
-    .activity-entry:last-child { border-bottom: 0; }
-    .activity-time { color: var(--muted); font-variant-numeric: tabular-nums; margin-right: 0.45rem; }
-    .activity-worker {
-      font-weight: 600;
       text-transform: uppercase;
-      font-size: 0.75rem;
       letter-spacing: 0.04em;
+      margin-left: auto;
     }
-    .activity-worker.enhance { color: #9dffc8; }
-    .activity-worker.ocr { color: #b9d9ff; }
-    .activity-worker.watch { color: #d4b5ff; }
-    .activity-worker.system { color: #ffe08a; }
-    .activity-worker.debug { color: var(--muted); }
-    .activity-entry.debug .activity-msg {
-      color: var(--muted);
-      font-style: italic;
-    }
-    .activity-msg { color: #d5deea; word-break: break-word; }
-    .activity-empty { color: var(--muted); padding: 1rem 0; text-align: center; }
-    @media (max-width: 1100px) {
-      .page-layout {
-        flex-direction: column;
-      }
-      .stats-sidebar,
-      .activity-sidebar,
-      .main-col {
-        position: static;
-        width: 100%;
-        max-width: none;
-        max-height: none;
-        height: auto;
-      }
-      .stats-sidebar { max-height: 24rem; }
-      .activity-sidebar { max-height: 20rem; }
-      .main-col { overflow: visible; padding: 0; }
-      .col-resizer { display: none; }
-      .stats-sidebar .stats-grid {
-        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-      }
-      .stats-sidebar .stats-head {
-        flex-direction: row;
-        align-items: center;
-      }
-      .stats-sidebar .control-btn { width: auto; }
+    .result-theme-select {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 0.78rem;
+      padding: 0.35rem 0.55rem;
+      max-width: 14rem;
+      cursor: pointer;
     }
     @media (max-width: 700px) {
       .result { grid-template-columns: 1fr; }
       .thumb { max-height: 220px; }
-      .stats-head { flex-direction: column; align-items: flex-start; gap: 0.5rem; }
     }
   </style>
+  <style>{% include "_result-themes.css" %}</style>
 </head>
 <body>
-  <div class="page-layout">
-  <aside class="stats-sidebar" id="stats-sidebar">
-    <section class="stats-panel" id="stats-panel">
-      <div class="stats-head">
-        <h2><span class="live-dot"></span>Live pipeline stats</h2>
-        <div style="display:flex;align-items:center;gap:0.75rem;width:100%;">
-          <button type="button" class="control-btn running" id="control-btn" disabled>
-            Processing...
+  <div class="wrap">
+    {% include "_nav.html" %}
+
+    <header class="header-top">
+      <div class="header-copy">
+        <h1>PacketPro</h1>
+        <p>Search OCR text across archived documents.</p>
+      </div>
+      <div class="header-actions">
+        <div>
+          <button type="button" class="kickstart-btn" id="kickstart-pipeline-btn" title="Start workers, enable processing, and scan watch folder">
+            Kickstart pipeline
           </button>
-          <span class="stat-sub" id="stats-updated">Updating...</span>
+          <div class="kickstart-result" id="kickstart-result" hidden></div>
         </div>
+        <a href="/pipeline?investigate=1" class="investigate-btn" id="investigate-pipeline-btn" title="Open pipeline diagnostics">
+          <span class="investigate-dot" id="investigate-pipeline-dot"></span>
+          Investigate pipeline
+        </a>
       </div>
-      <div class="stats-grid">
-        <div class="stat-card speedometer-card">
-          <div class="stat-label">OCR speed</div>
-          <div class="speedometer" aria-live="polite">
-            <svg viewBox="0 0 200 110" class="speedometer-svg" role="img" aria-label="OCR throughput gauge">
-              <defs>
-                <linearGradient id="speedometerGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                  <stop offset="0%" stop-color="#4da3ff"/>
-                  <stop offset="55%" stop-color="#7dffb2"/>
-                  <stop offset="100%" stop-color="#ffe08a"/>
-                </linearGradient>
-              </defs>
-              <path class="speedometer-arc-bg" d="M 24 95 A 76 76 0 0 1 176 95"/>
-              <path class="speedometer-arc-fill" id="speedometer-arc-fill" d="M 24 95 A 76 76 0 0 1 176 95"/>
-              <g id="speedometer-ticks"></g>
-              <line class="speedometer-needle" id="speedometer-needle" x1="100" y1="95" x2="100" y2="34"/>
-              <circle class="speedometer-hub" cx="100" cy="95" r="5"/>
-            </svg>
-          </div>
-          <div class="speedometer-readout">
-            <span class="speedometer-value" id="speedometer-value">0</span>
-            <span class="speedometer-unit">images / min</span>
-          </div>
-          <div class="speedometer-scale">
-            <span>0</span>
-            <span id="speedometer-max">10</span>
-          </div>
-          <div class="stat-sub" id="speedometer-sub">5 min average: 0</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-label">Inbox</div>
-          <div class="stat-value" id="stat-inbox">-</div>
-          <div class="stat-sub">waiting files</div>
-        </div>
-        <div class="stat-card" id="stat-watch-card" hidden>
-          <div class="stat-label" id="stat-watch-label">Watch folder</div>
-          <div class="stat-value" id="stat-watch-pending">-</div>
-          <div class="stat-sub" id="stat-watch-sub">eligible since scan start</div>
-          <button type="button" class="watch-scan-btn" id="watch-scan-btn">Scan folder</button>
-          <div class="watch-scan-result" id="watch-scan-result" hidden></div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-label">OCR queue</div>
-          <div class="stat-value" id="stat-queue">-</div>
-          <div class="stat-sub" id="stat-queue-sub">pending OCR jobs</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-label">Time to complete</div>
-          <div class="stat-value time-eta" id="stat-eta">--:--:--</div>
-          <div class="stat-sub" id="stat-eta-sub">at current speed</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-label">Indexed</div>
-          <div class="stat-value" id="stat-indexed">-</div>
-          <div class="stat-sub" id="stat-indexed-sub">images in database</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-label">Duplicates</div>
-          <div class="stat-value" id="stat-duplicates">-</div>
-          <div class="stat-sub">skipped (last 1h)</div>
-        </div>
-      </div>
-      <div class="stat-label">Workers</div>
-      <div class="worker-row" id="worker-chips"></div>
-      <div class="stat-label" style="margin-top:0.65rem">GPU</div>
-      <div class="gpu-row" id="gpu-chips"></div>
-      <div class="proc-row" id="proc-chips"></div>
-      <div class="stats-error" id="stats-error" hidden></div>
-    </section>
-  </aside>
-
-  <div class="col-resizer" id="resizer-left" aria-label="Resize stats and search panels" role="separator"></div>
-
-  <main class="main-col" id="main-col">
-    <nav>
-      <a href="/">Search</a>
-      <a href="/settings">Settings</a>
-    </nav>
-
-    <header>
-      <h1>PacketPro</h1>
-      <p>Search OCR text across archived documents.</p>
     </header>
 
     {% if not configured %}
@@ -625,462 +558,118 @@
     {% endif %}
 
     <form method="get" action="/">
-      <input type="search" name="q" value="{{ query }}" placeholder='Search words (any match) or "exact phrase"...' autofocus>
+      <input type="search" name="q" value="{{ query }}" placeholder='e.g. weather AND storm* OR "severe weather"' autofocus>
+      <select class="limit-select" name="limit" id="search-limit" aria-label="Maximum results">
+        <option value="50" {% if search_limit == '50' %}selected{% endif %}>50</option>
+        <option value="100" {% if search_limit == '100' %}selected{% endif %}>100</option>
+        <option value="all" {% if search_limit == 'all' %}selected{% endif %}>All (max {{ search_limit_max }})</option>
+      </select>
+      <button type="button" class="help-btn" id="search-help-btn" title="Search syntax help" aria-haspopup="dialog">?</button>
       <button type="submit">Search</button>
     </form>
 
-    {% if query %}
-      <div class="meta">{{ result_count }} result{% if result_count != 1 %}s{% endif %} for "{{ query }}"</div>
+    {% if search_error %}
+      <div class="banner err">{{ search_error }}</div>
     {% endif %}
 
-    {% if results %}
+    {% if query and not search_error %}
+      <div class="meta">
+        {{ result_count }} result{% if result_count != 1 %}s{% endif %}
+        {% if search_limit != 'all' %}(max {{ search_limit }}){% elif search_limit_capped %}(capped at {{ search_limit_max }}){% endif %}
+        for "{{ query }}"
+      </div>
+    {% endif %}
+
+    <div class="results-viewport theme-modern" id="results-viewport">
       <div class="result-actions">
-        <button type="button" class="action-btn" id="copy-all-btn">Copy all text</button>
-        <button type="button" class="action-btn" id="export-pdf-btn">Export to PDF</button>
-        <span class="action-status" id="export-status"></span>
+        {% if results %}
+          <button type="button" class="action-btn" id="copy-all-btn">Copy all text</button>
+          <button type="button" class="action-btn" id="export-pdf-btn">Export to PDF</button>
+          <span class="action-status" id="export-status"></span>
+        {% endif %}
+        <label class="result-theme-picker">
+          <span>Theme</span>
+          <select class="result-theme-select" id="result-theme" aria-label="Results display theme"></select>
+        </label>
       </div>
-      {% for item in results %}
-        <article class="result" data-doc-id="{{ item.document.id }}">
-          <a href="/images/{{ item.document.id }}" target="_blank" rel="noopener">
-            <img class="thumb" src="/images/{{ item.document.id }}" alt="{{ item.document.original_name }}">
-          </a>
-          <div>
-            <div class="title">
-              <span class="title-text">
-                {{ item.document.original_name }}
-                {% if item.document.page_number > 1 %}
-                  <span>— page {{ item.document.page_number }}</span>
-                {% endif %}
-              </span>
-              <button type="button" class="delete-btn" data-doc-id="{{ item.document.id }}">Delete</button>
+      {% if results %}
+        {% for item in results %}
+          <article class="result" data-doc-id="{{ item.document.id }}">
+            <a class="thumb-link" href="/images/{{ item.document.id }}" target="_blank" rel="noopener">
+              <img class="thumb" src="/images/{{ item.document.id }}" alt="{{ item.document.original_name }}">
+            </a>
+            <div>
+              <div class="title">
+                <span class="title-text">
+                  {{ item.document.original_name }}
+                  {% if item.document.page_number > 1 %}
+                    <span>— page {{ item.document.page_number }}</span>
+                  {% endif %}
+                </span>
+                <button type="button" class="delete-btn" data-doc-id="{{ item.document.id }}">Delete</button>
+              </div>
+              <div class="ocr-text">{{ item.snippet | safe }}</div>
             </div>
-            <div class="ocr-text">{{ item.snippet | safe }}</div>
-          </div>
-        </article>
-      {% endfor %}
-    {% elif query %}
-      <div class="empty">No matches found.</div>
-    {% else %}
-      <div class="empty">Enter a search term to find archived documents.</div>
-    {% endif %}
-  </main>
-
-  <div class="col-resizer" id="resizer-right" aria-label="Resize search and activity panels" role="separator"></div>
-
-  <aside class="activity-sidebar" id="activity-sidebar">
-    <section class="activity-panel" id="activity-panel">
-      <div class="stats-head">
-        <h2>Activity log</h2>
-        <span class="stat-sub" id="activity-updated">Updating...</span>
-      </div>
-      <div class="activity-log" id="activity-log">
-        <div class="activity-empty">Waiting for activity...</div>
-      </div>
-    </section>
-  </aside>
+          </article>
+        {% endfor %}
+      {% elif query and not search_error %}
+        <div class="empty">No matches found.</div>
+      {% else %}
+        <div class="empty">Enter a search term to find archived documents.</div>
+      {% endif %}
+    </div>
   </div>
+
+  <div class="image-viewer" id="image-viewer" hidden role="dialog" aria-modal="true" aria-label="Document image viewer">
+    <button type="button" class="image-viewer-close" id="image-viewer-close" aria-label="Close image viewer">&times;</button>
+    <button type="button" class="image-viewer-nav prev" id="image-viewer-prev" aria-label="Previous image">&#8249;</button>
+    <button type="button" class="image-viewer-nav next" id="image-viewer-next" aria-label="Next image">&#8250;</button>
+    <div class="image-viewer-stage">
+      <img class="image-viewer-img" id="image-viewer-img" alt="">
+    </div>
+    <div class="image-viewer-caption" id="image-viewer-caption"></div>
+    <div class="image-viewer-counter" id="image-viewer-counter"></div>
+    <div class="image-viewer-hint">Use &#8592; &#8594; to browse · Esc to close</div>
+  </div>
+
+  <div class="help-modal" id="search-help-modal" hidden role="dialog" aria-modal="true" aria-labelledby="search-help-title">
+    <div class="help-dialog-wrap">
+      <div class="help-dialog">
+        <button type="button" class="help-close" id="search-help-close" aria-label="Close search help">&times;</button>
+        <h2 id="search-help-title">Search syntax</h2>
+        <p>
+          Searches use SQLite full-text syntax directly. Combine terms with
+          <code>AND</code>, <code>OR</code>, and <code>NOT</code>, or group with parentheses.
+        </p>
+
+        <h3>Basics</h3>
+        <table class="help-table">
+          <tr><th><code>weather storm</code></th><td>Both words must appear (implicit AND).</td></tr>
+          <tr><th><code>weather OR storm</code></th><td>Either word can appear.</td></tr>
+          <tr><th><code>weather NOT test</code></th><td>Must include <code>weather</code>, exclude <code>test</code>.</td></tr>
+          <tr><th><code>"severe weather"</code></th><td>Exact phrase match.</td></tr>
+          <tr><th><code>(rain OR snow) AND warning</code></th><td>Group conditions with parentheses.</td></tr>
+        </table>
+
+        <h3>Wildcards and fields</h3>
+        <table class="help-table">
+          <tr><th><code>storm*</code></th><td>Prefix match: <code>storm</code>, <code>storms</code>, etc.</td></tr>
+          <tr><th><code>original_name:invoice</code></th><td>Search filenames only (all searches include filenames by default).</td></tr>
+        </table>
+
+        <h3>Examples</h3>
+        <table class="help-table">
+          <tr><th><code>hurricane* AND "wind speed"</code></th><td>Prefix plus exact phrase.</td></tr>
+          <tr><th><code>original_name:png AND radar</code></th><td>PNG filenames containing <code>radar</code>.</td></tr>
+          <tr><th><code>(flood OR hurricane) NOT drill</code></th><td>Either term, excluding <code>drill</code>.</td></tr>
+        </table>
+
+        <p>Malformed queries show an error above the results. Words are stemmed automatically (e.g. <code>running</code> may match <code>run</code>).</p>
+      </div>
+    </div>
+  </div>
+
   <script>
-    function workerChip(name, data) {
-      const alive = data && data.alive;
-      const state = (data && data.state) || "offline";
-      let cls = !alive ? "off" : "ok";
-      if (alive && state === "processing") cls = "busy";
-      if (alive && state === "paused") cls = "off";
-      let text = `${name}: ${alive ? state : "offline"}`;
-      if (alive && data.file) text += ` (${data.file})`;
-      return `<span class="chip ${cls}">${text}</span>`;
-    }
-
-    let processingEnabled = true;
-    let controlBusy = false;
-
-    function renderControlButton(configured, enabled) {
-      const btn = document.getElementById("control-btn");
-      if (!configured) {
-        btn.disabled = true;
-        btn.textContent = "Configure paths first";
-        btn.className = "control-btn stopped";
-        return;
-      }
-      btn.disabled = controlBusy;
-      processingEnabled = enabled;
-      if (enabled) {
-        btn.textContent = "Stop processing";
-        btn.className = "control-btn running";
-      } else {
-        btn.textContent = "Start processing";
-        btn.className = "control-btn stopped";
-      }
-    }
-
-    async function toggleProcessing() {
-      if (controlBusy) return;
-      controlBusy = true;
-      renderControlButton(true, processingEnabled);
-      try {
-        const res = await fetch("/api/control", {
-          method: "POST",
-          headers: {"Content-Type": "application/json"},
-          body: JSON.stringify({processing_enabled: !processingEnabled}),
-        });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = await res.json();
-        renderControlButton(data.configured, data.processing_enabled);
-        refreshActivity();
-      } catch (e) {
-        const err = document.getElementById("stats-error");
-        err.hidden = false;
-        err.textContent = `Control update failed: ${e.message}`;
-      } finally {
-        controlBusy = false;
-        renderControlButton(true, processingEnabled);
-      }
-    }
-
-    document.getElementById("control-btn").addEventListener("click", toggleProcessing);
-
-    async function scanWatchFolder() {
-      const btn = document.getElementById("watch-scan-btn");
-      const result = document.getElementById("watch-scan-result");
-      btn.disabled = true;
-      result.hidden = false;
-      result.textContent = "Starting scan…";
-      try {
-        const res = await fetch("/api/watch/scan", { method: "POST" });
-        const data = await res.json();
-        if (!res.ok) {
-          throw new Error(data.detail || `HTTP ${res.status}`);
-        }
-        document.getElementById("stat-watch-pending").textContent = data.pending ?? 0;
-        document.getElementById("stat-watch-sub").textContent = data.started
-          ? "processing since watermark"
-          : (data.available ? "nothing new to process" : "folder unavailable");
-        result.textContent = data.message || "Scan requested.";
-        refreshActivity();
-        if (data.started) {
-          setTimeout(refreshStats, 3000);
-          setTimeout(refreshActivity, 3000);
-        }
-      } catch (e) {
-        result.textContent = `Scan failed: ${e.message}`;
-      } finally {
-        btn.disabled = false;
-      }
-    }
-
-    document.getElementById("watch-scan-btn").addEventListener("click", scanWatchFolder);
-
-    function formatActivityTime(ts) {
-      try {
-        return new Date(ts).toLocaleTimeString();
-      } catch (_) {
-        return ts || "";
-      }
-    }
-
-    let lastActivityKeys = [];
-
-    function activityEntryKey(entry) {
-      return `${entry.ts}|${entry.worker}|${entry.action}|${entry.message}`;
-    }
-
-    function activityEntryHtml(entry) {
-      const worker = (entry.worker || "system").toLowerCase();
-      const action = (entry.action || "").toLowerCase();
-      const debugCls = action === "debug" ? " debug" : "";
-      return `<div class="activity-entry${debugCls}">
-          <div>
-            <span class="activity-time">${formatActivityTime(entry.ts)}</span>
-            <span class="activity-worker ${worker}${debugCls}">${worker}</span>
-          </div>
-          <span class="activity-msg">${entry.message || ""}</span>
-        </div>`;
-    }
-
-    function activityLogNearBottom(log, threshold = 48) {
-      return log.scrollHeight - log.scrollTop - log.clientHeight <= threshold;
-    }
-
-    function activitySlideCount(prevKeys, nextKeys) {
-      for (let drop = 0; drop <= prevKeys.length; drop++) {
-        const prevSuffix = prevKeys.slice(drop);
-        if (!prevSuffix.length) {
-          return drop;
-        }
-        let matches = true;
-        for (let i = 0; i < prevSuffix.length; i++) {
-          if (prevSuffix[i] !== nextKeys[i]) {
-            matches = false;
-            break;
-          }
-        }
-        if (matches) {
-          return drop;
-        }
-      }
-      return -1;
-    }
-
-    function scrollActivityLogToBottom(log, smooth = true) {
-      const top = log.scrollHeight;
-      if (smooth && "scrollTo" in log) {
-        log.scrollTo({ top, behavior: "smooth" });
-      } else {
-        log.scrollTop = top;
-      }
-    }
-
-    function renderActivity(entries) {
-      const log = document.getElementById("activity-log");
-      if (!entries || !entries.length) {
-        log.innerHTML = '<div class="activity-empty">No activity yet.</div>';
-        lastActivityKeys = [];
-        return;
-      }
-
-      const keys = entries.map(activityEntryKey);
-      if (keys.join("\n") === lastActivityKeys.join("\n")) {
-        return;
-      }
-
-      const stickToBottom = activityLogNearBottom(log);
-      log.querySelector(".activity-empty")?.remove();
-
-      if (!lastActivityKeys.length) {
-        log.innerHTML = entries.map(activityEntryHtml).join("");
-      } else {
-        const slide = activitySlideCount(lastActivityKeys, keys);
-        if (slide >= 0) {
-          for (let i = 0; i < slide; i++) {
-            log.firstElementChild?.remove();
-          }
-          const added = entries.slice(lastActivityKeys.length - slide);
-          if (added.length) {
-            log.insertAdjacentHTML("beforeend", added.map(activityEntryHtml).join(""));
-          }
-        } else {
-          log.innerHTML = entries.map(activityEntryHtml).join("");
-        }
-      }
-
-      lastActivityKeys = keys;
-
-      if (stickToBottom) {
-        requestAnimationFrame(() => scrollActivityLogToBottom(log, true));
-      }
-    }
-
-    async function refreshControl() {
-      try {
-        const res = await fetch("/api/control");
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = await res.json();
-        renderControlButton(data.configured, data.processing_enabled);
-      } catch (_) {
-        renderControlButton(false, false);
-      }
-    }
-
-    async function refreshActivity() {
-      try {
-        const res = await fetch("/api/activity?limit=150");
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = await res.json();
-        renderActivity(data.entries);
-        const updated = document.getElementById("activity-updated");
-        if (data.entries && data.entries.length) {
-          const latest = data.entries[data.entries.length - 1];
-          updated.textContent = `Updated ${formatActivityTime(latest.ts)}`;
-        } else {
-          updated.textContent = "No entries";
-        }
-      } catch (e) {
-        document.getElementById("activity-log").innerHTML =
-          `<div class="activity-empty">Activity log unavailable: ${e.message}</div>`;
-      }
-    }
-
-    const speedometerArc = document.getElementById("speedometer-arc-fill");
-    const speedometerNeedle = document.getElementById("speedometer-needle");
-    const speedometerArcLength = speedometerArc ? speedometerArc.getTotalLength() : 0;
-
-    (function initSpeedometerTicks() {
-      const tickGroup = document.getElementById("speedometer-ticks");
-      if (!tickGroup) return;
-      const cx = 100;
-      const cy = 95;
-      const outer = 76;
-      const inner = 66;
-      for (let i = 0; i <= 10; i++) {
-        const angle = Math.PI + (i / 10) * Math.PI;
-        const x1 = cx + Math.cos(angle) * inner;
-        const y1 = cy + Math.sin(angle) * inner;
-        const x2 = cx + Math.cos(angle) * outer;
-        const y2 = cy + Math.sin(angle) * outer;
-        const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
-        line.setAttribute("x1", String(x1));
-        line.setAttribute("y1", String(y1));
-        line.setAttribute("x2", String(x2));
-        line.setAttribute("y2", String(y2));
-        line.setAttribute("class", "speedometer-tick");
-        tickGroup.appendChild(line);
-      }
-    })();
-
-    function gaugeMaxForRate(rate) {
-      const rounded = Math.ceil(Math.max(rate, 1) * 1.25);
-      return Math.max(10, Math.ceil(rounded / 5) * 5);
-    }
-
-    function renderCompletionEta(completion) {
-      const etaEl = document.getElementById("stat-eta");
-      const subEl = document.getElementById("stat-eta-sub");
-      const info = completion || {};
-      etaEl.textContent = info.eta_hms || "--:--:--";
-
-      const ocrPending = Number(info.ocr_pending) || 0;
-      const importPending = Number(info.import_pending) || 0;
-      const totalPending = ocrPending + importPending;
-
-      if (totalPending <= 0) {
-        subEl.textContent = "queue empty";
-        return;
-      }
-      if (info.processing_enabled === false) {
-        subEl.textContent = "processing paused";
-        return;
-      }
-      if (info.eta_seconds == null) {
-        subEl.textContent = "waiting for OCR speed";
-        return;
-      }
-
-      const parts = [];
-      if (importPending > 0) {
-        parts.push(`${importPending} to import`);
-      }
-      if (ocrPending > 0) {
-        parts.push(`${ocrPending} in OCR queue`);
-      }
-      subEl.textContent = parts.join(" · ");
-    }
-
-    function renderOcrSpeedometer(rate1m, rate5m) {
-      const value = Number(rate1m) || 0;
-      const avg5m = Number(rate5m) || 0;
-      const max = gaugeMaxForRate(Math.max(value, avg5m));
-      const ratio = Math.max(0, Math.min(1, value / max));
-      const angle = -90 + ratio * 180;
-
-      document.getElementById("speedometer-value").textContent = value.toFixed(1);
-      document.getElementById("speedometer-max").textContent = String(max);
-      document.getElementById("speedometer-sub").textContent =
-        `5 min average: ${avg5m.toFixed(1)} images / min`;
-
-      if (speedometerArc && speedometerArcLength > 0) {
-        speedometerArc.style.strokeDasharray = String(speedometerArcLength);
-        speedometerArc.style.strokeDashoffset = String(speedometerArcLength * (1 - ratio));
-      }
-      if (speedometerNeedle) {
-        speedometerNeedle.style.transform = `rotate(${angle}deg)`;
-      }
-    }
-
-    function renderStats(data) {
-      const err = document.getElementById("stats-error");
-      const watchCard = document.getElementById("stat-watch-card");
-      if (!data.configured) {
-        renderOcrSpeedometer(0, 0);
-        renderCompletionEta(null);
-        document.getElementById("stat-inbox").textContent = "-";
-        document.getElementById("stat-queue").textContent = "-";
-        document.getElementById("stat-indexed").textContent = "-";
-        document.getElementById("stat-indexed-sub").textContent = "images in database";
-        watchCard.hidden = true;
-        document.getElementById("worker-chips").innerHTML =
-          '<span class="chip off">configure paths in settings</span>';
-      } else {
-        document.getElementById("stat-inbox").textContent = data.queues.inbox;
-        const ocrPending = data.queues.transformed_pending;
-        const watchOcrPending = data.queues.watch_ocr_pending ?? 0;
-        document.getElementById("stat-queue").textContent = ocrPending;
-        const queueSub = document.getElementById("stat-queue-sub");
-        queueSub.textContent = watchOcrPending > 0 && watchOcrPending !== ocrPending
-          ? `${watchOcrPending} from watch folder`
-          : "pending OCR jobs";
-        const dbStats = data.database || {};
-        const indexed = dbStats.indexed_documents ?? 0;
-        const sources = dbStats.indexed_sources ?? 0;
-        document.getElementById("stat-indexed").textContent = indexed;
-        document.getElementById("stat-indexed-sub").textContent =
-          indexed === sources
-            ? "images in database"
-            : `${sources} source file${sources === 1 ? "" : "s"} · ${indexed} page${indexed === 1 ? "" : "s"}`;
-        renderOcrSpeedometer(
-          data.rates.ocr_per_minute_1m,
-          data.rates.ocr_per_minute_5m
-        );
-        renderCompletionEta(data.completion);
-        document.getElementById("stat-duplicates").textContent =
-          (data.totals && data.totals.duplicate_skipped_1h) || 0;
-        const watch = data.watch || {};
-        if (watch.configured) {
-          watchCard.hidden = false;
-          document.getElementById("stat-watch-label").textContent = watch.folder_name || "Watch folder";
-          document.getElementById("stat-watch-pending").textContent = watch.pending ?? 0;
-          document.getElementById("stat-watch-sub").textContent = watch.available
-            ? ((watch.ocr_pending ?? 0) > 0
-              ? `${watch.ocr_pending} queued for OCR`
-              : "eligible since scan start")
-            : "folder unavailable";
-        } else {
-          watchCard.hidden = true;
-        }
-        const workers = data.workers || {};
-        document.getElementById("worker-chips").innerHTML =
-          workerChip("enhance", workers.enhance) +
-          workerChip("ocr", workers.ocr) +
-          workerChip("watch", workers.watch);
-        err.hidden = true;
-      }
-
-      const gpu = data.gpu || {};
-      const gpuEl = document.getElementById("gpu-chips");
-      const procEl = document.getElementById("proc-chips");
-      if (!gpu.available) {
-        gpuEl.innerHTML = '<span class="chip off">no NVIDIA GPU detected</span>';
-        procEl.innerHTML = "";
-      } else {
-        gpuEl.innerHTML = (gpu.gpus || []).map(g =>
-          `<span class="chip gpu">GPU ${g.index}: ${g.utilization_pct}% · ${g.memory_used_mib}/${g.memory_total_mib} MiB</span>`
-        ).join("");
-        const procs = gpu.relevant_processes || [];
-        procEl.innerHTML = procs.length
-          ? procs.map(p =>
-              `<span class="chip gpu">GPU ${p.gpu_index} · ${p.name} · pid ${p.pid} · ${p.memory_mib} MiB</span>`
-            ).join("")
-          : '<span class="chip off">no OCR GPU processes running</span>';
-      }
-
-      const updated = document.getElementById("stats-updated");
-      if (data.ts) {
-        const when = new Date(data.ts);
-        updated.textContent = `Updated ${when.toLocaleTimeString()}`;
-      }
-    }
-
-    async function refreshStats() {
-      try {
-        const res = await fetch("/api/stats");
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        renderStats(await res.json());
-      } catch (e) {
-        const err = document.getElementById("stats-error");
-        err.hidden = false;
-        err.textContent = `Stats unavailable: ${e.message}`;
-      }
-    }
-
     async function deleteDocument(docId, button) {
       const article = button.closest(".result");
       button.disabled = true;
@@ -1097,7 +686,9 @@
           if (meta) {
             const remaining = document.querySelectorAll(".result").length;
             const query = {{ query | tojson }};
-            meta.textContent = `${remaining} result${remaining === 1 ? "" : "s"} for "${query}"`;
+            const limit = {{ search_limit | tojson }};
+            const limitSuffix = limit !== "all" ? ` (max ${limit})` : "";
+            meta.textContent = `${remaining} result${remaining === 1 ? "" : "s"}${limitSuffix} for "${query}"`;
             if (remaining === 0 && parent) {
               const empty = document.createElement("div");
               empty.className = "empty";
@@ -1187,102 +778,218 @@
       });
     }
 
-    (function initColumnResizers() {
-      const stats = document.getElementById("stats-sidebar");
-      const activity = document.getElementById("activity-sidebar");
-      const main = document.getElementById("main-col");
-      const resizerLeft = document.getElementById("resizer-left");
-      const resizerRight = document.getElementById("resizer-right");
-      if (!stats || !activity || !main || !resizerLeft || !resizerRight) return;
+    (function initKickstartButton() {
+      const btn = document.getElementById("kickstart-pipeline-btn");
+      const result = document.getElementById("kickstart-result");
+      if (!btn || !result) return;
 
-      const storageKey = "packetpro-column-widths";
-      const minStats = 176;
-      const minActivity = 176;
-      const minMain = 224;
-
-      const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
-
-      function maxStatsWidth() {
-        return Math.min(window.innerWidth * 0.4, window.innerWidth - minMain - minActivity - 40);
-      }
-
-      function maxActivityWidth() {
-        return Math.min(window.innerWidth * 0.4, window.innerWidth - minMain - minStats - 40);
-      }
-
-      function applySavedWidths() {
+      btn.addEventListener("click", async () => {
+        btn.disabled = true;
+        result.hidden = false;
+        result.className = "kickstart-result";
+        result.textContent = "Kickstarting workers and queues…";
         try {
-          const saved = JSON.parse(localStorage.getItem(storageKey) || "null");
-          if (saved?.stats) {
-            stats.style.width = `${clamp(saved.stats, minStats, maxStatsWidth())}px`;
+          const res = await fetch("/api/pipeline/kickstart", { method: "POST" });
+          const data = await res.json();
+          if (!res.ok) {
+            throw new Error(data.detail || `HTTP ${res.status}`);
           }
-          if (saved?.activity) {
-            activity.style.width = `${clamp(saved.activity, minActivity, maxActivityWidth())}px`;
+          const workerFailures = (data.actions || []).filter(
+            (action) => action.kind === "worker" && !action.already_running && !action.started
+          );
+          if (!data.ok || workerFailures.length) {
+            result.className = "kickstart-result warn";
+          } else {
+            result.className = "kickstart-result ok";
           }
-        } catch (_) {}
-      }
-
-      let saveTimer = null;
-      function persistWidths() {
-        clearTimeout(saveTimer);
-        saveTimer = setTimeout(() => {
-          localStorage.setItem(storageKey, JSON.stringify({
-            stats: stats.offsetWidth,
-            activity: activity.offsetWidth,
-          }));
-        }, 200);
-      }
-
-      function startResize(resizer, panel, direction, event) {
-        resizer.classList.add("dragging");
-        document.body.style.cursor = "col-resize";
-        document.body.style.userSelect = "none";
-        const startX = event.clientX;
-        const startWidth = panel.offsetWidth;
-
-        function onMove(ev) {
-          const delta = ev.clientX - startX;
-          const raw = direction === "left" ? startWidth + delta : startWidth - delta;
-          const max = direction === "left" ? maxStatsWidth() : maxActivityWidth();
-          const min = direction === "left" ? minStats : minActivity;
-          panel.style.width = `${clamp(raw, min, max)}px`;
+          result.textContent = data.message || "Pipeline kickstarted.";
+        } catch (e) {
+          result.className = "kickstart-result err";
+          result.textContent = `Kickstart failed: ${e.message}`;
+        } finally {
+          btn.disabled = false;
         }
-
-        function onUp() {
-          resizer.classList.remove("dragging");
-          document.body.style.cursor = "";
-          document.body.style.userSelect = "";
-          document.removeEventListener("mousemove", onMove);
-          document.removeEventListener("mouseup", onUp);
-          persistWidths();
-        }
-
-        document.addEventListener("mousemove", onMove);
-        document.addEventListener("mouseup", onUp);
-      }
-
-      resizerLeft.addEventListener("mousedown", (event) => {
-        event.preventDefault();
-        startResize(resizerLeft, stats, "left", event);
-      });
-      resizerRight.addEventListener("mousedown", (event) => {
-        event.preventDefault();
-        startResize(resizerRight, activity, "right", event);
-      });
-
-      applySavedWidths();
-      window.addEventListener("resize", () => {
-        stats.style.width = `${clamp(stats.offsetWidth, minStats, maxStatsWidth())}px`;
-        activity.style.width = `${clamp(activity.offsetWidth, minActivity, maxActivityWidth())}px`;
-        persistWidths();
       });
     })();
 
-    refreshControl();
-    refreshStats();
-    refreshActivity();
-    setInterval(() => { refreshStats(); refreshControl(); }, 2000);
-    setInterval(refreshActivity, 2000);
+    (function initPipelineStatusDot() {
+      const dot = document.getElementById("investigate-pipeline-dot");
+      if (!dot) return;
+
+      async function refreshPipelineDot() {
+        try {
+          const [controlRes, statsRes] = await Promise.all([
+            fetch("/api/control"),
+            fetch("/api/stats"),
+          ]);
+          if (!controlRes.ok || !statsRes.ok) throw new Error("unavailable");
+          const control = await controlRes.json();
+          const stats = await statsRes.json();
+          dot.className = "investigate-dot";
+
+          if (!control.configured) {
+            dot.classList.add("offline");
+            return;
+          }
+
+          const workers = stats.workers || {};
+          const anyAlive = ["enhance", "ocr", "watch"].some(
+            (name) => workers[name] && workers[name].alive
+          );
+          if (!anyAlive) {
+            dot.classList.add("offline");
+            return;
+          }
+
+          dot.classList.add(control.processing_enabled ? "running" : "paused");
+        } catch (_) {
+          dot.className = "investigate-dot offline";
+        }
+      }
+
+      refreshPipelineDot();
+      setInterval(refreshPipelineDot, 5000);
+    })();
+
+    (function initImageViewer() {
+      const viewer = document.getElementById("image-viewer");
+      const img = document.getElementById("image-viewer-img");
+      const caption = document.getElementById("image-viewer-caption");
+      const counter = document.getElementById("image-viewer-counter");
+      const closeBtn = document.getElementById("image-viewer-close");
+      const prevBtn = document.getElementById("image-viewer-prev");
+      const nextBtn = document.getElementById("image-viewer-next");
+      if (!viewer || !img) return;
+
+      let index = 0;
+      let activeArticle = null;
+
+      function getItems() {
+        return Array.from(document.querySelectorAll(".result")).flatMap((article) => {
+          const thumb = article.querySelector(".thumb");
+          if (!thumb) return [];
+          return [{
+            thumb,
+            src: thumb.currentSrc || thumb.src,
+            alt: thumb.alt || "",
+            article,
+          }];
+        });
+      }
+
+      function setActiveArticle(article) {
+        if (activeArticle) activeArticle.classList.remove("is-image-active");
+        activeArticle = article || null;
+        if (activeArticle) activeArticle.classList.add("is-image-active");
+      }
+
+      function updateNav(items) {
+        const single = items.length <= 1;
+        if (prevBtn) prevBtn.disabled = single;
+        if (nextBtn) nextBtn.disabled = single;
+      }
+
+      function showAt(nextIndex) {
+        const items = getItems();
+        if (!items.length) {
+          close();
+          return;
+        }
+        index = ((nextIndex % items.length) + items.length) % items.length;
+        const item = items[index];
+        img.src = item.src;
+        img.alt = item.alt;
+        if (caption) caption.textContent = item.alt;
+        if (counter) counter.textContent = `${index + 1} / ${items.length}`;
+        setActiveArticle(item.article);
+        updateNav(items);
+        item.article.scrollIntoView({ block: "nearest", behavior: "smooth" });
+      }
+
+      function openAt(startIndex) {
+        const items = getItems();
+        if (!items.length) return;
+        viewer.hidden = false;
+        document.body.style.overflow = "hidden";
+        showAt(startIndex);
+        closeBtn?.focus();
+      }
+
+      function close() {
+        viewer.hidden = true;
+        document.body.style.overflow = "";
+        setActiveArticle(null);
+      }
+
+      function step(delta) {
+        if (viewer.hidden) return;
+        showAt(index + delta);
+      }
+
+      document.querySelectorAll(".thumb-link").forEach((link) => {
+        link.addEventListener("click", (event) => {
+          if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return;
+          event.preventDefault();
+          const thumb = link.querySelector(".thumb");
+          const items = getItems();
+          const startIndex = items.findIndex((item) => item.thumb === thumb);
+          openAt(startIndex >= 0 ? startIndex : 0);
+        });
+      });
+
+      closeBtn?.addEventListener("click", close);
+      prevBtn?.addEventListener("click", () => step(-1));
+      nextBtn?.addEventListener("click", () => step(1));
+      viewer.addEventListener("click", (event) => {
+        if (event.target === viewer) close();
+      });
+      document.addEventListener("keydown", (event) => {
+        if (viewer.hidden) return;
+        if (event.key === "Escape") {
+          event.preventDefault();
+          close();
+          return;
+        }
+        if (event.key === "ArrowLeft") {
+          event.preventDefault();
+          step(-1);
+          return;
+        }
+        if (event.key === "ArrowRight") {
+          event.preventDefault();
+          step(1);
+        }
+      });
+    })();
+
+    (function initSearchHelp() {
+      const helpBtn = document.getElementById("search-help-btn");
+      const modal = document.getElementById("search-help-modal");
+      const closeBtn = document.getElementById("search-help-close");
+      if (!helpBtn || !modal) return;
+
+      const openModal = () => {
+        modal.hidden = false;
+        document.body.style.overflow = "hidden";
+        closeBtn?.focus();
+      };
+      const closeModal = () => {
+        modal.hidden = true;
+        document.body.style.overflow = "";
+        helpBtn.focus();
+      };
+
+      helpBtn.addEventListener("click", openModal);
+      closeBtn?.addEventListener("click", closeModal);
+      modal.addEventListener("click", (event) => {
+        if (event.target === modal) closeModal();
+      });
+      document.addEventListener("keydown", (event) => {
+        if (!modal.hidden && event.key === "Escape") closeModal();
+      });
+    })();
+
   </script>
+  <script>{% include "_result-themes.js" %}</script>
 </body>
 </html>

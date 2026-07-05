@@ -8,6 +8,7 @@ from pathlib import Path
 import cv2
 from fastapi import Body, FastAPI, Form, HTTPException, Query, Request
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, Response
+from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from packetpro.config import (
@@ -24,10 +25,13 @@ from packetpro.config import (
     save_paths_settings,
 )
 from packetpro.db import (
+    SEARCH_LIMIT_ALL_MAX,
+    SearchQueryError,
     count_documents_with_archive,
     delete_document,
     get_document,
     init_db,
+    resolve_search_limit,
     search_documents,
 )
 from packetpro.enhance import render_pdf_page
@@ -39,6 +43,7 @@ from packetpro.export import (
 )
 from packetpro.pipeline_control import (
     get_control_state,
+    kickstart_pipeline,
     read_activity,
     set_processing_enabled,
 )
@@ -49,7 +54,9 @@ from packetpro.workers.watch_worker import (
     set_watch_watermark,
 )
 
-TEMPLATES = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
+WEB_DIR = Path(__file__).parent
+STATIC_DIR = WEB_DIR / "static"
+TEMPLATES = Jinja2Templates(directory=str(WEB_DIR / "templates"))
 
 
 def _try_load_config() -> AppConfig | None:
@@ -80,13 +87,27 @@ def create_app(config: AppConfig | None = None) -> FastAPI:
         return [item.document for item in results]
 
     @app.get("/", response_class=HTMLResponse)
-    async def index(request: Request, q: str = Query(default="")) -> HTMLResponse:
+    async def index(
+        request: Request,
+        q: str = Query(default=""),
+        limit: str = Query(default="50"),
+    ) -> HTMLResponse:
         settings = get_paths_settings()
         cfg = _try_load_config()
         results = []
+        search_error = None
+        search_limit_capped = False
+        resolved_limit = resolve_search_limit(limit)
+        display_limit = "all" if resolved_limit is None else str(resolved_limit)
         if cfg is not None and q.strip():
             init_db(cfg.database)
-            results = search_documents(cfg.database, q)
+            try:
+                results = search_documents(cfg.database, q, limit=resolved_limit)
+                search_limit_capped = (
+                    resolved_limit is None and len(results) >= SEARCH_LIMIT_ALL_MAX
+                )
+            except SearchQueryError as exc:
+                search_error = str(exc)
 
         return TEMPLATES.TemplateResponse(
             request,
@@ -95,8 +116,30 @@ def create_app(config: AppConfig | None = None) -> FastAPI:
                 "query": q,
                 "results": results,
                 "result_count": len(results),
+                "search_limit": display_limit,
+                "search_limit_max": SEARCH_LIMIT_ALL_MAX,
+                "search_limit_capped": search_limit_capped,
+                "search_error": search_error,
                 "configured": settings["configured"],
                 "paths": settings,
+                "active_tab": "search",
+            },
+        )
+
+    @app.get("/pipeline", response_class=HTMLResponse)
+    async def pipeline_page(
+        request: Request,
+        investigate: str = Query(default=""),
+    ) -> HTMLResponse:
+        settings = get_paths_settings()
+        return TEMPLATES.TemplateResponse(
+            request,
+            "pipeline.html",
+            {
+                "configured": settings["configured"],
+                "paths": settings,
+                "active_tab": "pipeline",
+                "investigate": investigate == "1",
             },
         )
 
@@ -114,6 +157,7 @@ def create_app(config: AppConfig | None = None) -> FastAPI:
                 "settings": settings,
                 "saved": saved == "1",
                 "error": error,
+                "active_tab": "settings",
             },
         )
 
@@ -167,6 +211,12 @@ def create_app(config: AppConfig | None = None) -> FastAPI:
             raise HTTPException(status_code=400, detail="processing_enabled is required")
         state = set_processing_enabled(cfg, bool(payload["processing_enabled"]))
         return {"configured": True, **state}
+
+    @app.post("/api/pipeline/kickstart")
+    async def api_pipeline_kickstart() -> dict:
+        cfg = runtime_config()
+        result = kickstart_pipeline(cfg)
+        return {"configured": True, **result}
 
     @app.get("/api/activity")
     async def api_activity(
@@ -332,7 +382,10 @@ def create_app(config: AppConfig | None = None) -> FastAPI:
     @app.get("/api/export/text")
     async def api_export_text(q: str = Query(..., min_length=1)) -> dict:
         cfg = runtime_config()
-        documents = _export_documents(cfg, q)
+        try:
+            documents = _export_documents(cfg, q)
+        except SearchQueryError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
         if not documents:
             raise HTTPException(status_code=404, detail="No documents matched the query")
         text = format_ai_export(q, documents)
@@ -350,7 +403,10 @@ def create_app(config: AppConfig | None = None) -> FastAPI:
             raise HTTPException(status_code=400, detail="query is required")
 
         cfg = runtime_config()
-        documents = _export_documents(cfg, query)
+        try:
+            documents = _export_documents(cfg, query)
+        except SearchQueryError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
         if not documents:
             raise HTTPException(status_code=404, detail="No documents matched the query")
 
@@ -393,12 +449,20 @@ def create_app(config: AppConfig | None = None) -> FastAPI:
         )
 
     @app.get("/api/search")
-    async def api_search(q: str = Query(..., min_length=1)) -> dict:
+    async def api_search(
+        q: str = Query(..., min_length=1),
+        limit: str = Query(default="50"),
+    ) -> dict:
         cfg = runtime_config()
         init_db(cfg.database)
-        results = search_documents(cfg.database, q)
+        resolved_limit = resolve_search_limit(limit)
+        try:
+            results = search_documents(cfg.database, q, limit=resolved_limit)
+        except SearchQueryError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
         return {
             "query": q,
+            "limit": limit,
             "count": len(results),
             "results": [
                 {
@@ -474,5 +538,8 @@ def create_app(config: AppConfig | None = None) -> FastAPI:
             media_type=media_type,
             content_disposition_type="inline",
         )
+
+    if STATIC_DIR.is_dir():
+        app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
     return app
