@@ -26,9 +26,12 @@ ocr:
     Extract all visible text from this image verbatim.
     Preserve line breaks and paragraph structure.
     Output only the extracted text with no commentary.
-  timeout_seconds: 300
-  max_retries: 3
-  num_ctx: 32768
+  timeout_seconds: 180
+  max_retries: 2
+  # Large enough for vision image tokens; pair with num_predict to avoid runaway output.
+  num_ctx: 16384
+  # Cap output tokens so OCR cannot runaway-generate (was hanging the queue).
+  num_predict: 2048
 
 web:
   host: 127.0.0.1

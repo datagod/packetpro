@@ -47,6 +47,7 @@ class OcrConfig:
     timeout_seconds: int
     max_retries: int
     num_ctx: int
+    num_predict: int = 4096
     use_both_gpus: bool = False
     secondary_ollama_url: str = "http://127.0.0.1:11435"
     secondary_model: str = "qwen2.5vl:7b"
@@ -218,7 +219,8 @@ def parse_config(raw: dict[str, Any], config_path: Path) -> AppConfig:
             ),
             timeout_seconds=int(ocr_raw.get("timeout_seconds", 300)),
             max_retries=int(ocr_raw.get("max_retries", 3)),
-            num_ctx=int(ocr_raw.get("num_ctx", 32768)),
+            num_ctx=int(ocr_raw.get("num_ctx", 16384)),
+            num_predict=int(ocr_raw.get("num_predict", 2048)),
             use_both_gpus=bool(ocr_raw.get("use_both_gpus", False)),
             secondary_ollama_url=str(
                 ocr_raw.get("secondary_ollama_url", "http://127.0.0.1:11435")

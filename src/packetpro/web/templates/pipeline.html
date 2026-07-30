@@ -138,6 +138,21 @@
       color: #d8ffe8;
     }
     .kickstart-btn:disabled { opacity: 0.55; cursor: wait; }
+    .reprocess-btn {
+      padding: 0.7rem 1.15rem;
+      border-radius: 10px;
+      border: 1px solid rgba(255, 143, 143, 0.45);
+      background: rgba(255, 143, 143, 0.12);
+      color: #ffc7c7;
+      font-weight: 700;
+      font-size: 0.95rem;
+      cursor: pointer;
+    }
+    .reprocess-btn:hover:not(:disabled) {
+      background: rgba(255, 143, 143, 0.22);
+      color: #ffe0e0;
+    }
+    .reprocess-btn:disabled { opacity: 0.55; cursor: wait; }
     .kickstart-result {
       width: 100%;
       flex-basis: 100%;
@@ -443,6 +458,9 @@
             <button type="button" class="kickstart-btn" id="kickstart-btn">
               Kickstart pipeline
             </button>
+            <button type="button" class="reprocess-btn" id="reprocess-btn" disabled>
+              Reprocess failures
+            </button>
             <button type="button" class="control-btn running" id="control-btn" disabled>
               Processing...
             </button>
@@ -464,7 +482,7 @@
             </ul>
             <div class="investigate-actions">
               <button type="button" class="investigate-link-btn" id="investigate-scroll-activity">
-                Jump to activity log
+                Open activity log
               </button>
               <button type="button" class="investigate-link-btn" id="investigate-scroll-workers">
                 Jump to workers
@@ -604,7 +622,10 @@
               Debug
             </label>
           </div>
-          <span class="stat-sub" id="activity-updated">Updating...</span>
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:0.5rem;flex-wrap:wrap">
+            <span class="stat-sub" id="activity-updated">Updating...</span>
+            <a href="/activity" style="color:var(--accent);font-size:0.8rem;font-weight:600;text-decoration:none">Open full log →</a>
+          </div>
           <div class="activity-log" id="activity-log">
             <div class="activity-empty">Waiting for activity...</div>
           </div>
@@ -727,6 +748,52 @@
     }
 
     document.getElementById("kickstart-btn").addEventListener("click", kickstartPipeline);
+
+    let reprocessBusy = false;
+    let failedCount = 0;
+
+    function updateReprocessButton(count) {
+      const btn = document.getElementById("reprocess-btn");
+      if (!btn || reprocessBusy) return;
+      failedCount = Number(count) || 0;
+      btn.disabled = false;
+      btn.textContent = failedCount > 0
+        ? `Reprocess failures (${failedCount})`
+        : "Reprocess failures";
+    }
+
+    async function reprocessFailures() {
+      const btn = document.getElementById("reprocess-btn");
+      const result = document.getElementById("kickstart-result");
+      if (reprocessBusy) return;
+      reprocessBusy = true;
+      btn.disabled = true;
+      result.hidden = false;
+      result.className = "kickstart-result";
+      result.textContent = "Reprocessing failures…";
+      try {
+        const res = await fetch("/api/pipeline/reprocess-failures", { method: "POST" });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          throw new Error(data.detail || `HTTP ${res.status}`);
+        }
+        result.className = data.ok === false ? "kickstart-result warn" : "kickstart-result ok";
+        result.textContent = data.message || "Reprocess complete.";
+        refreshActivity();
+        setTimeout(() => {
+          refreshStats();
+          refreshActivity();
+        }, 1500);
+      } catch (e) {
+        result.className = "kickstart-result err";
+        result.textContent = `Reprocess failed: ${e.message}`;
+      } finally {
+        reprocessBusy = false;
+        updateReprocessButton(failedCount);
+      }
+    }
+
+    document.getElementById("reprocess-btn").addEventListener("click", reprocessFailures);
 
     function setInvestigateMode(enabled) {
       investigateMode = enabled;
@@ -857,7 +924,7 @@
       }
     });
     document.getElementById("investigate-scroll-activity").addEventListener("click", () => {
-      document.getElementById("activity-sidebar").scrollIntoView({ behavior: "smooth", block: "start" });
+      window.location.href = "/activity";
     });
     document.getElementById("investigate-scroll-workers").addEventListener("click", () => {
       document.getElementById("workers-section").scrollIntoView({ behavior: "smooth", block: "start" });
@@ -1103,6 +1170,7 @@
       document.getElementById("stat-throughput").textContent =
         `${totals.enhanced_events_1h ?? 0} / ${totals.ocr_complete_events_1h ?? 0}`;
       document.getElementById("stat-duplicates").textContent = totals.duplicate_skipped_1h ?? 0;
+      updateReprocessButton(data.queues?.failed ?? 0);
 
       renderOcrSpeedometer(data.rates.ocr_per_minute_1m, data.rates.ocr_per_minute_5m);
       renderCompletionEta(data.completion);

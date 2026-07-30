@@ -1,0 +1,915 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PacketPro — Activity</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg: #0f1419;
+      --panel: #1a2332;
+      --text: #e7ecf3;
+      --muted: #9aa7b8;
+      --accent: #4da3ff;
+      --border: #2b3a4f;
+      --ok: #7dffb2;
+      --err: #ff8f8f;
+      --warn: #ffe08a;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", system-ui, sans-serif;
+      background: linear-gradient(180deg, #0b1016, var(--bg));
+      color: var(--text);
+      min-height: 100vh;
+    }
+    .wrap {
+      width: 100%;
+      max-width: min(1400px, 100%);
+      margin: 0 auto;
+      padding: 1.25rem clamp(0.5rem, 1vw, 0.85rem) 2rem;
+    }
+    .site-nav { margin-bottom: 1.5rem; }
+    .site-nav a {
+      color: var(--accent);
+      text-decoration: none;
+      margin-right: 1.25rem;
+      font-weight: 500;
+    }
+    .site-nav a.active {
+      color: var(--text);
+      border-bottom: 2px solid var(--accent);
+      padding-bottom: 0.15rem;
+    }
+    header h1 { margin: 0 0 0.25rem; font-size: 2rem; letter-spacing: 0.02em; }
+    header p { margin: 0 0 1.25rem; color: var(--muted); }
+    .banner {
+      padding: 0.85rem 1rem;
+      border-radius: 10px;
+      margin-bottom: 1.25rem;
+      background: rgba(77, 163, 255, 0.12);
+      color: #b9d9ff;
+    }
+    .banner a { color: var(--accent); }
+    .panel {
+      padding: 1rem 1.1rem;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: rgba(26, 35, 50, 0.75);
+      margin-bottom: 1rem;
+    }
+    .panel-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 0.85rem;
+      flex-wrap: wrap;
+    }
+    .panel-head h2 {
+      margin: 0;
+      font-size: 1.1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+    }
+    .live-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--accent);
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.35; }
+    }
+    .stat-sub { color: var(--muted); font-size: 0.78rem; }
+    .workers-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 0.75rem;
+    }
+    .worker-card {
+      padding: 0.85rem;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: var(--panel);
+    }
+    .worker-card h3 {
+      margin: 0 0 0.45rem;
+      font-size: 0.88rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+    }
+    .worker-card.enhance h3 { color: #9dffc8; }
+    .worker-card.ocr h3 { color: #b9d9ff; }
+    .worker-card.watch h3 { color: #d4b5ff; }
+    .worker-card.system h3 { color: var(--warn); }
+    .status-dot {
+      width: 0.5rem;
+      height: 0.5rem;
+      border-radius: 50%;
+      background: var(--muted);
+      flex-shrink: 0;
+    }
+    .status-dot.alive { background: var(--ok); box-shadow: 0 0 0 3px rgba(125, 255, 178, 0.15); }
+    .status-dot.paused { background: var(--warn); box-shadow: 0 0 0 3px rgba(255, 224, 138, 0.15); }
+    .status-dot.offline { background: var(--err); box-shadow: 0 0 0 3px rgba(255, 143, 143, 0.12); }
+    .worker-detail { font-size: 0.84rem; color: var(--muted); line-height: 1.45; }
+    .worker-detail strong { color: var(--text); font-weight: 600; }
+    .queue-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-top: 0.75rem;
+    }
+    .chip {
+      padding: 0.35rem 0.65rem;
+      border-radius: 999px;
+      font-size: 0.8rem;
+      border: 1px solid var(--border);
+      background: rgba(15, 20, 25, 0.55);
+      color: var(--muted);
+    }
+    .chip.ok { border-color: #3d8f67; color: #9dffc8; }
+    .chip.warn { border-color: #b38c2a; color: var(--warn); }
+    .chip.off { border-color: #7a3b3b; color: #ffb0b0; }
+    .filters {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.65rem;
+      align-items: center;
+    }
+    .filter-group {
+      display: inline-flex;
+      flex-wrap: wrap;
+      gap: 0.35rem;
+      padding: 0.2rem;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: rgba(15, 20, 25, 0.4);
+    }
+    .filter-btn {
+      padding: 0.4rem 0.7rem;
+      border-radius: 8px;
+      border: 1px solid transparent;
+      background: transparent;
+      color: var(--muted);
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .filter-btn:hover { color: var(--text); background: rgba(77, 163, 255, 0.1); }
+    .filter-btn.active {
+      color: var(--text);
+      background: rgba(77, 163, 255, 0.18);
+      border-color: rgba(77, 163, 255, 0.35);
+    }
+    .filter-btn.enhance.active { color: #9dffc8; border-color: rgba(125, 255, 178, 0.3); background: rgba(125, 255, 178, 0.1); }
+    .filter-btn.ocr.active { color: #b9d9ff; border-color: rgba(77, 163, 255, 0.35); background: rgba(77, 163, 255, 0.14); }
+    .filter-btn.watch.active { color: #d4b5ff; border-color: rgba(180, 140, 255, 0.35); background: rgba(180, 140, 255, 0.12); }
+    .filter-btn.system.active { color: var(--warn); border-color: rgba(255, 224, 138, 0.35); background: rgba(255, 224, 138, 0.1); }
+    .search-input {
+      flex: 1;
+      min-width: 12rem;
+      padding: 0.5rem 0.75rem;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: rgba(15, 20, 25, 0.55);
+      color: var(--text);
+      font-size: 0.88rem;
+    }
+    .search-input:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px rgba(77, 163, 255, 0.2);
+    }
+    .toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 0.82rem;
+      color: var(--muted);
+      cursor: pointer;
+      user-select: none;
+      white-space: nowrap;
+    }
+    .toggle input { accent-color: var(--accent); }
+    .limit-select {
+      padding: 0.45rem 0.55rem;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: rgba(15, 20, 25, 0.55);
+      color: var(--text);
+      font-size: 0.82rem;
+    }
+    .activity-shell {
+      display: flex;
+      flex-direction: column;
+      min-height: calc(100vh - 18rem);
+    }
+    .activity-meta {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 0.65rem;
+    }
+    .activity-log {
+      flex: 1;
+      min-height: 28rem;
+      max-height: calc(100vh - 20rem);
+      overflow-y: auto;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: rgba(15, 20, 25, 0.45);
+      scroll-behavior: smooth;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(154, 167, 184, 0.42) transparent;
+    }
+    .activity-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.86rem;
+    }
+    .activity-table thead {
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      background: #152033;
+    }
+    .activity-table th {
+      text-align: left;
+      padding: 0.65rem 0.75rem;
+      color: var(--muted);
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      font-weight: 600;
+      border-bottom: 1px solid var(--border);
+    }
+    .activity-table td {
+      padding: 0.55rem 0.75rem;
+      border-bottom: 1px solid rgba(43, 58, 79, 0.45);
+      vertical-align: top;
+    }
+    .activity-table tr:last-child td { border-bottom: 0; }
+    .activity-table tr:hover td { background: rgba(77, 163, 255, 0.05); }
+    .activity-table tr.debug td { opacity: 0.72; }
+    .activity-table tr.error td { background: rgba(255, 143, 143, 0.06); }
+    .activity-table tr.warning td { background: rgba(255, 224, 138, 0.05); }
+    .col-time {
+      width: 7.5rem;
+      white-space: nowrap;
+      color: var(--muted);
+      font-variant-numeric: tabular-nums;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 0.8rem;
+    }
+    .col-worker { width: 6.5rem; }
+    .col-action { width: 7.5rem; }
+    .col-file { width: 16rem; max-width: 16rem; }
+    .worker-badge {
+      display: inline-block;
+      padding: 0.15rem 0.45rem;
+      border-radius: 6px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      border: 1px solid var(--border);
+    }
+    .worker-badge.enhance { color: #9dffc8; border-color: rgba(125, 255, 178, 0.3); background: rgba(125, 255, 178, 0.08); }
+    .worker-badge.ocr { color: #b9d9ff; border-color: rgba(77, 163, 255, 0.35); background: rgba(77, 163, 255, 0.1); }
+    .worker-badge.watch { color: #d4b5ff; border-color: rgba(180, 140, 255, 0.35); background: rgba(180, 140, 255, 0.1); }
+    .worker-badge.system { color: var(--warn); border-color: rgba(255, 224, 138, 0.35); background: rgba(255, 224, 138, 0.08); }
+    .action-badge {
+      display: inline-block;
+      padding: 0.12rem 0.4rem;
+      border-radius: 999px;
+      font-size: 0.72rem;
+      font-weight: 600;
+      color: var(--muted);
+      border: 1px solid var(--border);
+      background: rgba(15, 20, 25, 0.4);
+    }
+    .action-badge.error { color: #ffb0b0; border-color: rgba(255, 143, 143, 0.4); }
+    .action-badge.warning { color: var(--warn); border-color: rgba(255, 224, 138, 0.4); }
+    .action-badge.complete,
+    .action-badge.queued,
+    .action-badge.indexed { color: #9dffc8; border-color: rgba(125, 255, 178, 0.35); }
+    .action-badge.scanning,
+    .action-badge.processing,
+    .action-badge.ocr,
+    .action-badge.enhancing,
+    .action-badge.preparing,
+    .action-badge.loading,
+    .action-badge.archiving { color: #b9d9ff; border-color: rgba(77, 163, 255, 0.35); }
+    .action-badge.duplicate,
+    .action-badge.skipped,
+    .action-badge.idle { color: var(--muted); }
+    .action-badge.debug { color: var(--muted); font-style: italic; }
+    .msg-text { color: #d5deea; word-break: break-word; line-height: 1.4; }
+    .file-text {
+      color: var(--muted);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 0.78rem;
+      word-break: break-all;
+    }
+    .page-tag {
+      display: inline-block;
+      margin-left: 0.35rem;
+      padding: 0.05rem 0.35rem;
+      border-radius: 4px;
+      border: 1px solid var(--border);
+      font-size: 0.7rem;
+      color: var(--muted);
+    }
+    .activity-empty {
+      color: var(--muted);
+      padding: 2.5rem 1rem;
+      text-align: center;
+    }
+    .stats-error { color: #ffb0b0; font-size: 0.9rem; margin-top: 0.5rem; }
+    .reprocess-bar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.75rem;
+      margin-top: 0.85rem;
+      padding-top: 0.85rem;
+      border-top: 1px solid rgba(43, 58, 79, 0.65);
+    }
+    .reprocess-btn {
+      padding: 0.55rem 0.95rem;
+      border-radius: 9px;
+      border: 1px solid rgba(255, 143, 143, 0.4);
+      background: rgba(255, 143, 143, 0.12);
+      color: #ffc7c7;
+      font-weight: 700;
+      font-size: 0.88rem;
+      cursor: pointer;
+    }
+    .reprocess-btn:hover:not(:disabled) {
+      background: rgba(255, 143, 143, 0.22);
+      color: #ffe0e0;
+    }
+    .reprocess-btn:disabled { opacity: 0.55; cursor: wait; }
+    .reprocess-btn:disabled.has-none {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+    .reprocess-result {
+      color: var(--muted);
+      font-size: 0.82rem;
+      line-height: 1.4;
+      flex: 1;
+      min-width: 12rem;
+    }
+    .reprocess-result.ok { color: var(--ok); }
+    .reprocess-result.warn { color: var(--warn); }
+    .reprocess-result.err { color: var(--err); }
+    .action-badge.reprocess { color: #ffc7c7; border-color: rgba(255, 143, 143, 0.4); }
+    @media (max-width: 900px) {
+      .col-file { display: none; }
+      .activity-log { max-height: none; min-height: 22rem; }
+      .col-time { width: 5.5rem; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    {% include "_nav.html" %}
+
+    <header>
+      <h1>Activity</h1>
+      <p>Live log of worker scans, file pickup, OCR progress, and control events.</p>
+    </header>
+
+    {% if not configured %}
+      <div class="banner">
+        Folder locations are not configured yet.
+        <a href="/settings">Open Settings</a> to choose inbox, archive, and database paths.
+      </div>
+    {% endif %}
+
+    <section class="panel">
+      <div class="panel-head">
+        <h2><span class="live-dot"></span>Processes</h2>
+        <span class="stat-sub" id="workers-updated">Updating...</span>
+      </div>
+      <div class="workers-grid" id="workers-grid">
+        <div class="worker-card enhance">
+          <h3><span class="status-dot offline" id="dot-enhance"></span>Enhance</h3>
+          <div class="worker-detail" id="worker-enhance">Checking...</div>
+        </div>
+        <div class="worker-card ocr">
+          <h3><span class="status-dot offline" id="dot-ocr"></span>OCR</h3>
+          <div class="worker-detail" id="worker-ocr">Checking...</div>
+        </div>
+        <div class="worker-card watch">
+          <h3><span class="status-dot offline" id="dot-watch"></span>Watch</h3>
+          <div class="worker-detail" id="worker-watch">Checking...</div>
+        </div>
+        <div class="worker-card system">
+          <h3><span class="status-dot offline" id="dot-control"></span>Processing</h3>
+          <div class="worker-detail" id="worker-control">Checking...</div>
+        </div>
+      </div>
+      <div class="queue-row" id="queue-chips"></div>
+      <div class="reprocess-bar">
+        <button type="button" class="reprocess-btn" id="reprocess-btn" disabled>
+          Reprocess failures
+        </button>
+        <span class="reprocess-result" id="reprocess-result">Checking failed queue…</span>
+      </div>
+      <div class="stats-error" id="stats-error" hidden></div>
+    </section>
+
+    <section class="panel activity-shell">
+      <div class="panel-head">
+        <h2>Activity log</h2>
+        <div class="filters">
+          <div class="filter-group" id="worker-filters" role="group" aria-label="Filter by worker">
+            <button type="button" class="filter-btn active" data-worker="">All</button>
+            <button type="button" class="filter-btn enhance" data-worker="enhance">Enhance</button>
+            <button type="button" class="filter-btn ocr" data-worker="ocr">OCR</button>
+            <button type="button" class="filter-btn watch" data-worker="watch">Watch</button>
+            <button type="button" class="filter-btn system" data-worker="system">System</button>
+          </div>
+          <input
+            type="search"
+            class="search-input"
+            id="search-input"
+            placeholder="Filter messages or filenames…"
+            autocomplete="off"
+          >
+          <select class="limit-select" id="limit-select" aria-label="Number of entries">
+            <option value="150">150 entries</option>
+            <option value="300" selected>300 entries</option>
+            <option value="500">500 entries</option>
+          </select>
+          <label class="toggle">
+            <input type="checkbox" id="debug-toggle">
+            Debug
+          </label>
+          <label class="toggle">
+            <input type="checkbox" id="follow-toggle" checked>
+            Follow
+          </label>
+          <label class="toggle">
+            <input type="checkbox" id="pause-toggle">
+            Pause
+          </label>
+        </div>
+      </div>
+
+      <div class="activity-meta">
+        <span class="stat-sub" id="activity-count">Loading…</span>
+        <span class="stat-sub" id="activity-updated">Updating...</span>
+      </div>
+
+      <div class="activity-log" id="activity-log">
+        <div class="activity-empty">Waiting for activity...</div>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    let showDebug = false;
+    let followTail = true;
+    let paused = false;
+    let workerFilter = "";
+    let textFilter = "";
+    let entryLimit = 300;
+    let lastActivityKeys = [];
+    let latestEntries = [];
+    let failedCount = 0;
+    let reprocessBusy = false;
+
+    function formatTime(ts) {
+      try {
+        const d = new Date(ts);
+        return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+      } catch (_) {
+        return ts || "";
+      }
+    }
+
+    function formatDateTime(ts) {
+      try {
+        const d = new Date(ts);
+        return d.toLocaleString([], {
+          month: "short",
+          day: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+        });
+      } catch (_) {
+        return ts || "";
+      }
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+    }
+
+    function formatErrorDetail(detail) {
+      if (detail == null) return "";
+      if (typeof detail === "string") return detail;
+      if (Array.isArray(detail)) {
+        return detail.map((item) => {
+          if (item && typeof item === "object") {
+            const loc = Array.isArray(item.loc)
+              ? item.loc.filter((part) => part !== "body").join(".")
+              : "";
+            const msg = item.msg || item.message || JSON.stringify(item);
+            return loc ? `${loc}: ${msg}` : String(msg);
+          }
+          return String(item);
+        }).join("\n");
+      }
+      if (typeof detail === "object") {
+        if (detail.message) return String(detail.message);
+        if (detail.detail) return formatErrorDetail(detail.detail);
+        try { return JSON.stringify(detail, null, 2); }
+        catch (_) { return String(detail); }
+      }
+      return String(detail);
+    }
+
+    async function readFetchError(res, fallback) {
+      const statusLabel = `${res.status} ${res.statusText || ""}`.trim();
+      try {
+        const contentType = res.headers.get("content-type") || "";
+        if (contentType.includes("application/json")) {
+          const data = await res.json();
+          const detail = formatErrorDetail(data.detail ?? data);
+          if (detail) {
+            return res.status === 404
+              ? `Not found (${statusLabel})\n${detail}`
+              : `${detail} (${statusLabel})`;
+          }
+        } else {
+          const text = (await res.text()).trim();
+          if (text) return `${statusLabel}\n${text}`;
+        }
+      } catch (_) {}
+      return fallback || statusLabel || "Request failed";
+    }
+
+    function setStatusDot(id, state) {
+      const el = document.getElementById(id);
+      el.className = "status-dot " + (state || "offline");
+    }
+
+    function renderWorkerCard(name, data) {
+      const el = document.getElementById(`worker-${name}`);
+      const dot = document.getElementById(`dot-${name}`);
+      if (!data || !data.alive) {
+        setStatusDot(`dot-${name}`, "offline");
+        el.innerHTML = "<strong>Offline</strong><br>Worker is not running or heartbeat expired.";
+        return;
+      }
+      const state = (data.state || "unknown").toLowerCase();
+      setStatusDot(`dot-${name}`, state === "paused" ? "paused" : "alive");
+      const pid = data.pid ? `PID ${escapeHtml(data.pid)}` : "PID unknown";
+      const file = data.file
+        ? `<br>Current: <strong>${escapeHtml(data.file)}</strong>`
+        : "";
+      const detail = data.message
+        ? `<br>${escapeHtml(data.message)}`
+        : "";
+      el.innerHTML = `<strong>${escapeHtml(data.state || "unknown")}</strong> · ${pid}${file}${detail}`;
+    }
+
+    function renderControl(stats) {
+      const el = document.getElementById("worker-control");
+      if (!stats || !stats.configured) {
+        setStatusDot("dot-control", "offline");
+        el.innerHTML = "<strong>Not configured</strong><br>Set folder paths in Settings.";
+        return;
+      }
+      const control = stats.control || {};
+      const enabled = control.processing_enabled !== false;
+      setStatusDot("dot-control", enabled ? "alive" : "paused");
+      const updated = control.updated_at
+        ? `<br>Last changed ${escapeHtml(formatDateTime(control.updated_at))}`
+        : "";
+      el.innerHTML = enabled
+        ? `<strong>Enabled</strong> · workers may process queues${updated}`
+        : `<strong>Paused</strong> · new work waits until resumed${updated}`;
+    }
+
+    function renderQueueChips(stats) {
+      const row = document.getElementById("queue-chips");
+      if (!stats || !stats.configured) {
+        row.innerHTML = "";
+        updateReprocessButton(0);
+        return;
+      }
+      const q = stats.queues || {};
+      const watch = stats.watch || {};
+      failedCount = Number(q.failed || 0);
+      const chips = [
+        { label: `Inbox ${q.inbox ?? 0}`, cls: (q.inbox || 0) > 0 ? "warn" : "ok" },
+        { label: `OCR queue ${q.transformed_pending ?? 0}`, cls: (q.transformed_pending || 0) > 0 ? "warn" : "ok" },
+      ];
+      if (watch.configured) {
+        chips.push({
+          label: `Watch pending ${watch.pending ?? 0}`,
+          cls: (watch.pending || 0) > 0 ? "warn" : "ok",
+        });
+      }
+      if (failedCount > 0) {
+        chips.push({ label: `Failed ${failedCount}`, cls: "off" });
+      }
+      const rates = stats.rates || {};
+      chips.push({
+        label: `OCR ${Number(rates.ocr_per_minute_1m || 0).toFixed(1)}/min`,
+        cls: "ok",
+      });
+      row.innerHTML = chips
+        .map((chip) => `<span class="chip ${chip.cls}">${escapeHtml(chip.label)}</span>`)
+        .join("");
+      updateReprocessButton(failedCount);
+    }
+
+    function updateReprocessButton(count) {
+      const btn = document.getElementById("reprocess-btn");
+      const result = document.getElementById("reprocess-result");
+      if (reprocessBusy) return;
+      btn.disabled = false;
+      btn.classList.remove("has-none");
+      if (count > 0) {
+        btn.textContent = `Reprocess failures (${count})`;
+        if (!result.dataset.sticky) {
+          result.className = "reprocess-result";
+          result.textContent = `${count} file(s) in the failed folder. Moves them to inbox, re-queues recoverable OCR jobs, and logs each previous failure reason.`;
+        }
+      } else {
+        btn.textContent = "Reprocess failures";
+        if (!result.dataset.sticky) {
+          result.className = "reprocess-result";
+          result.textContent = "No failed originals right now. Still clears/re-queues failed OCR jobs if any remain.";
+        }
+      }
+    }
+
+    async function reprocessFailures() {
+      const btn = document.getElementById("reprocess-btn");
+      const result = document.getElementById("reprocess-result");
+      if (reprocessBusy) return;
+      reprocessBusy = true;
+      btn.disabled = true;
+      result.dataset.sticky = "1";
+      result.className = "reprocess-result";
+      result.textContent = "Reprocessing failures…";
+      try {
+        const res = await fetch("/api/pipeline/reprocess-failures", { method: "POST" });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          const detail = formatErrorDetail(data.detail ?? data) || `HTTP ${res.status}`;
+          throw new Error(detail);
+        }
+        result.className = data.ok === false ? "reprocess-result warn" : "reprocess-result ok";
+        result.textContent = data.message || "Reprocess complete.";
+        refreshActivity();
+        setTimeout(() => {
+          refreshStats();
+          refreshActivity();
+        }, 1500);
+        setTimeout(() => {
+          delete result.dataset.sticky;
+          updateReprocessButton(failedCount);
+        }, 8000);
+      } catch (e) {
+        result.className = "reprocess-result err";
+        result.textContent = `Reprocess failed: ${e.message}`;
+        setTimeout(() => {
+          delete result.dataset.sticky;
+          updateReprocessButton(failedCount);
+        }, 10000);
+      } finally {
+        reprocessBusy = false;
+        updateReprocessButton(failedCount);
+      }
+    }
+
+    async function refreshStats() {
+      try {
+        const res = await fetch("/api/stats");
+        if (!res.ok) throw new Error(await readFetchError(res, `HTTP ${res.status}`));
+        const data = await res.json();
+        const workers = data.workers || {};
+        renderWorkerCard("enhance", workers.enhance);
+        renderWorkerCard("ocr", workers.ocr);
+        renderWorkerCard("watch", workers.watch);
+        renderControl(data);
+        renderQueueChips(data);
+        document.getElementById("workers-updated").textContent = data.ts
+          ? `Updated ${formatTime(data.ts)}`
+          : "Updated";
+        document.getElementById("stats-error").hidden = true;
+      } catch (e) {
+        const err = document.getElementById("stats-error");
+        err.hidden = false;
+        err.textContent = `Worker status unavailable: ${e.message}`;
+        err.style.whiteSpace = "pre-wrap";
+      }
+    }
+
+    function activityEntryKey(entry) {
+      return `${entry.ts}|${entry.worker}|${entry.action}|${entry.message}|${entry.file || ""}|${entry.page ?? ""}`;
+    }
+
+    function matchesTextFilter(entry) {
+      if (!textFilter) return true;
+      const hay = [
+        entry.message || "",
+        entry.file || "",
+        entry.action || "",
+        entry.worker || "",
+      ].join(" ").toLowerCase();
+      return hay.includes(textFilter);
+    }
+
+    function actionClass(action) {
+      return String(action || "").toLowerCase().replace(/[^a-z0-9_-]/g, "") || "unknown";
+    }
+
+    function activityRowHtml(entry) {
+      const worker = (entry.worker || "system").toLowerCase();
+      const action = actionClass(entry.action);
+      const rowClass = action === "debug" ? "debug"
+        : action === "error" ? "error"
+        : action === "warning" ? "warning"
+        : "";
+      const file = entry.file
+        ? `<span class="file-text">${escapeHtml(entry.file)}</span>${
+            entry.page != null ? `<span class="page-tag">p${escapeHtml(entry.page)}</span>` : ""
+          }`
+        : "—";
+      return `<tr class="${rowClass}">
+        <td class="col-time" title="${escapeHtml(formatDateTime(entry.ts))}">${escapeHtml(formatTime(entry.ts))}</td>
+        <td class="col-worker"><span class="worker-badge ${escapeHtml(worker)}">${escapeHtml(worker)}</span></td>
+        <td class="col-action"><span class="action-badge ${escapeHtml(action)}">${escapeHtml(entry.action || "—")}</span></td>
+        <td><span class="msg-text">${escapeHtml(entry.message || "")}</span></td>
+        <td class="col-file">${file}</td>
+      </tr>`;
+    }
+
+    function activityLogNearBottom(log, threshold = 64) {
+      return log.scrollHeight - log.scrollTop - log.clientHeight <= threshold;
+    }
+
+    function renderActivity(entries) {
+      const log = document.getElementById("activity-log");
+      const filtered = (entries || []).filter(matchesTextFilter);
+      document.getElementById("activity-count").textContent = filtered.length
+        ? `${filtered.length} entr${filtered.length === 1 ? "y" : "ies"}${
+            textFilter || workerFilter ? " (filtered)" : ""
+          }`
+        : "No matching entries";
+
+      if (!filtered.length) {
+        log.innerHTML = `<div class="activity-empty">${
+          entries && entries.length
+            ? "No entries match the current filters."
+            : "No activity yet. Start the workers or drop a file into the inbox."
+        }</div>`;
+        lastActivityKeys = [];
+        return;
+      }
+
+      const keys = filtered.map(activityEntryKey);
+      if (keys.join("\n") === lastActivityKeys.join("\n")) return;
+
+      const stickToBottom = followTail && activityLogNearBottom(log);
+      log.innerHTML = `<table class="activity-table">
+        <thead>
+          <tr>
+            <th class="col-time">Time</th>
+            <th class="col-worker">Worker</th>
+            <th class="col-action">Action</th>
+            <th>Message</th>
+            <th class="col-file">File</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${filtered.map(activityRowHtml).join("")}
+        </tbody>
+      </table>`;
+      lastActivityKeys = keys;
+
+      if (stickToBottom || followTail) {
+        requestAnimationFrame(() => { log.scrollTop = log.scrollHeight; });
+      }
+    }
+
+    async function refreshActivity() {
+      if (paused) return;
+      try {
+        const params = new URLSearchParams({
+          limit: String(entryLimit),
+          debug: showDebug ? "1" : "0",
+        });
+        if (workerFilter) params.set("worker", workerFilter);
+        const res = await fetch(`/api/activity?${params}`);
+        if (!res.ok) throw new Error(await readFetchError(res, `HTTP ${res.status}`));
+        const data = await res.json();
+        latestEntries = data.entries || [];
+        renderActivity(latestEntries);
+        const updated = document.getElementById("activity-updated");
+        if (latestEntries.length) {
+          const latest = latestEntries[latestEntries.length - 1];
+          updated.textContent = `Latest ${formatDateTime(latest.ts)}`;
+        } else if (!data.configured) {
+          updated.textContent = "Not configured";
+        } else {
+          updated.textContent = "No entries";
+        }
+      } catch (e) {
+        document.getElementById("activity-log").innerHTML =
+          `<div class="activity-empty" style="white-space:pre-wrap;text-align:left;max-width:40rem;margin:0 auto">Activity log unavailable:\n${escapeHtml(e.message)}</div>`;
+        document.getElementById("activity-count").textContent = "Unavailable";
+      }
+    }
+
+    document.querySelectorAll("#worker-filters .filter-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll("#worker-filters .filter-btn").forEach((b) => b.classList.remove("active"));
+        btn.classList.add("active");
+        workerFilter = btn.dataset.worker || "";
+        lastActivityKeys = [];
+        refreshActivity();
+      });
+    });
+
+    let searchTimer = null;
+    document.getElementById("search-input").addEventListener("input", (event) => {
+      clearTimeout(searchTimer);
+      searchTimer = setTimeout(() => {
+        textFilter = (event.target.value || "").trim().toLowerCase();
+        lastActivityKeys = [];
+        renderActivity(latestEntries);
+      }, 150);
+    });
+
+    document.getElementById("limit-select").addEventListener("change", (event) => {
+      entryLimit = Number(event.target.value) || 300;
+      lastActivityKeys = [];
+      refreshActivity();
+    });
+
+    document.getElementById("debug-toggle").addEventListener("change", (event) => {
+      showDebug = event.target.checked;
+      lastActivityKeys = [];
+      refreshActivity();
+    });
+
+    document.getElementById("follow-toggle").addEventListener("change", (event) => {
+      followTail = event.target.checked;
+      if (followTail) {
+        const log = document.getElementById("activity-log");
+        log.scrollTop = log.scrollHeight;
+      }
+    });
+
+    document.getElementById("pause-toggle").addEventListener("change", (event) => {
+      paused = event.target.checked;
+      document.getElementById("activity-updated").textContent = paused
+        ? "Paused"
+        : "Resuming…";
+      if (!paused) refreshActivity();
+    });
+
+    document.getElementById("activity-log").addEventListener("scroll", () => {
+      const log = document.getElementById("activity-log");
+      if (!activityLogNearBottom(log) && followTail) {
+        // User scrolled up — leave Follow checked but don't force jump until they re-enable or hit bottom.
+      }
+    });
+
+    document.getElementById("reprocess-btn").addEventListener("click", reprocessFailures);
+
+    refreshStats();
+    refreshActivity();
+    setInterval(refreshStats, 2000);
+    setInterval(refreshActivity, 2000);
+  </script>
+</body>
+</html>

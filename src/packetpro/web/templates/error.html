@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PacketPro — {{ status_code }} {{ title }}</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg: #0f1419;
+      --panel: #1a2332;
+      --text: #e7ecf3;
+      --muted: #9aa7b8;
+      --accent: #4da3ff;
+      --border: #2b3a4f;
+      --err: #ff8f8f;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", system-ui, sans-serif;
+      background: linear-gradient(180deg, #0b1016, var(--bg));
+      color: var(--text);
+      min-height: 100vh;
+    }
+    .wrap {
+      width: 100%;
+      max-width: min(720px, 100%);
+      margin: 0 auto;
+      padding: 1.25rem clamp(0.5rem, 1vw, 0.85rem) 2rem;
+    }
+    .site-nav { margin-bottom: 1.5rem; }
+    .site-nav a {
+      color: var(--accent);
+      text-decoration: none;
+      margin-right: 1.25rem;
+      font-weight: 500;
+    }
+    .card {
+      padding: 1.5rem 1.35rem;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      background: rgba(26, 35, 50, 0.8);
+    }
+    .code {
+      display: inline-block;
+      margin: 0 0 0.65rem;
+      padding: 0.2rem 0.55rem;
+      border-radius: 8px;
+      border: 1px solid rgba(255, 143, 143, 0.35);
+      background: rgba(255, 143, 143, 0.1);
+      color: var(--err);
+      font-size: 0.82rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+    }
+    h1 {
+      margin: 0 0 0.5rem;
+      font-size: 1.7rem;
+      letter-spacing: 0.02em;
+    }
+    .detail {
+      margin: 0 0 1.25rem;
+      color: var(--muted);
+      line-height: 1.5;
+      font-size: 1rem;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .path {
+      margin: 0 0 1.35rem;
+      padding: 0.65rem 0.75rem;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: rgba(15, 20, 25, 0.55);
+      color: #d5deea;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 0.86rem;
+      word-break: break-all;
+    }
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.65rem;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      padding: 0.55rem 0.9rem;
+      border-radius: 9px;
+      border: 1px solid var(--border);
+      background: rgba(77, 163, 255, 0.14);
+      color: var(--accent);
+      font-weight: 600;
+      font-size: 0.9rem;
+      text-decoration: none;
+    }
+    .btn:hover { background: rgba(77, 163, 255, 0.24); color: var(--text); }
+    .btn.secondary {
+      background: transparent;
+      color: var(--muted);
+    }
+    .btn.secondary:hover { color: var(--text); border-color: var(--accent); }
+    .hint {
+      margin: 1.25rem 0 0;
+      color: var(--muted);
+      font-size: 0.82rem;
+      line-height: 1.45;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    {% include "_nav.html" %}
+
+    <div class="card">
+      <div class="code">{{ status_code }} · {{ title }}</div>
+      <h1>{{ heading }}</h1>
+      <p class="detail">{{ detail }}</p>
+      {% if path %}
+        <div class="path">{{ path }}</div>
+      {% endif %}
+      <div class="actions">
+        <a class="btn" href="/">Search</a>
+        <a class="btn secondary" href="/pipeline">Pipeline</a>
+        <a class="btn secondary" href="/activity">Activity</a>
+        <a class="btn secondary" href="/settings">Settings</a>
+      </div>
+      {% if hint %}
+        <p class="hint">{{ hint }}</p>
+      {% endif %}
+    </div>
+  </div>
+</body>
+</html>

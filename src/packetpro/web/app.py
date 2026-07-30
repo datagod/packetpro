@@ -4,12 +4,15 @@ from __future__ import annotations
 
 import mimetypes
 from pathlib import Path
+from typing import Any
 
 import cv2
 from fastapi import Body, FastAPI, Form, HTTPException, Query, Request
-from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, Response
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from packetpro.config import (
     AppConfig,
@@ -45,6 +48,7 @@ from packetpro.pipeline_control import (
     get_control_state,
     kickstart_pipeline,
     read_activity,
+    reprocess_failures,
     set_processing_enabled,
 )
 from packetpro.stats import collect_stats
@@ -58,12 +62,94 @@ WEB_DIR = Path(__file__).parent
 STATIC_DIR = WEB_DIR / "static"
 TEMPLATES = Jinja2Templates(directory=str(WEB_DIR / "templates"))
 
+_HTTP_TITLES = {
+    400: "Bad Request",
+    401: "Unauthorized",
+    403: "Forbidden",
+    404: "Not Found",
+    405: "Method Not Allowed",
+    409: "Conflict",
+    422: "Unprocessable Entity",
+    500: "Internal Server Error",
+    503: "Service Unavailable",
+}
+
 
 def _try_load_config() -> AppConfig | None:
     try:
         return load_config()
     except ConfigError:
         return None
+
+
+def _wants_html(request: Request) -> bool:
+    accept = request.headers.get("accept", "")
+    if "text/html" in accept:
+        return True
+    # Browser navigations often send */* without an explicit Accept preference.
+    user_agent = request.headers.get("user-agent", "")
+    return request.method in {"GET", "HEAD"} and "Mozilla" in user_agent
+
+
+def _format_error_detail(detail: Any) -> str:
+    if detail is None:
+        return "Something went wrong."
+    if isinstance(detail, str):
+        return detail
+    if isinstance(detail, list):
+        parts: list[str] = []
+        for item in detail:
+            if isinstance(item, dict):
+                loc = ".".join(str(part) for part in item.get("loc", []) if part != "body")
+                msg = item.get("msg") or item.get("message") or str(item)
+                parts.append(f"{loc}: {msg}" if loc else str(msg))
+            else:
+                parts.append(str(item))
+        return "\n".join(parts) if parts else "Invalid request."
+    if isinstance(detail, dict):
+        if "message" in detail:
+            return str(detail["message"])
+        if "detail" in detail:
+            return _format_error_detail(detail["detail"])
+        return "\n".join(f"{key}: {value}" for key, value in detail.items())
+    return str(detail)
+
+
+def _error_page(
+    request: Request,
+    *,
+    status_code: int,
+    detail: Any,
+    hint: str | None = None,
+) -> HTMLResponse:
+    title = _HTTP_TITLES.get(status_code, "Error")
+    message = _format_error_detail(detail)
+    if status_code == 404:
+        heading = "Page not found"
+        if not hint:
+            hint = (
+                "This page may be new and the web service needs a restart, "
+                "or the URL is incorrect."
+            )
+    elif status_code == 503:
+        heading = "Service unavailable"
+    else:
+        heading = title
+
+    return TEMPLATES.TemplateResponse(
+        request,
+        "error.html",
+        {
+            "status_code": status_code,
+            "title": title,
+            "heading": heading,
+            "detail": message,
+            "path": request.url.path,
+            "hint": hint,
+            "active_tab": None,
+        },
+        status_code=status_code,
+    )
 
 
 def create_app(config: AppConfig | None = None) -> FastAPI:
@@ -85,6 +171,22 @@ def create_app(config: AppConfig | None = None) -> FastAPI:
         ensure_data_dirs(cfg)
         results = search_documents(cfg.database, query, limit=EXPORT_SEARCH_LIMIT)
         return [item.document for item in results]
+
+    @app.exception_handler(StarletteHTTPException)
+    async def http_exception_handler(
+        request: Request, exc: StarletteHTTPException
+    ) -> Response:
+        if _wants_html(request):
+            return _error_page(request, status_code=exc.status_code, detail=exc.detail)
+        return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
+
+    @app.exception_handler(RequestValidationError)
+    async def validation_exception_handler(
+        request: Request, exc: RequestValidationError
+    ) -> Response:
+        if _wants_html(request):
+            return _error_page(request, status_code=422, detail=exc.errors())
+        return JSONResponse(status_code=422, content={"detail": exc.errors()})
 
     @app.get("/", response_class=HTMLResponse)
     async def index(
@@ -140,6 +242,19 @@ def create_app(config: AppConfig | None = None) -> FastAPI:
                 "paths": settings,
                 "active_tab": "pipeline",
                 "investigate": investigate == "1",
+            },
+        )
+
+    @app.get("/activity", response_class=HTMLResponse)
+    async def activity_page(request: Request) -> HTMLResponse:
+        settings = get_paths_settings()
+        return TEMPLATES.TemplateResponse(
+            request,
+            "activity.html",
+            {
+                "configured": settings["configured"],
+                "paths": settings,
+                "active_tab": "activity",
             },
         )
 
@@ -218,17 +333,31 @@ def create_app(config: AppConfig | None = None) -> FastAPI:
         result = kickstart_pipeline(cfg)
         return {"configured": True, **result}
 
+    @app.post("/api/pipeline/reprocess-failures")
+    async def api_pipeline_reprocess_failures() -> dict:
+        cfg = runtime_config()
+        ensure_data_dirs(cfg)
+        result = reprocess_failures(cfg)
+        return {"configured": True, **result}
+
     @app.get("/api/activity")
     async def api_activity(
-        limit: int = Query(default=80, ge=1, le=200),
+        limit: int = Query(default=150, ge=1, le=500),
         debug: str = Query(default=""),
+        worker: str = Query(default=""),
     ) -> dict:
         cfg = _try_load_config()
         if cfg is None:
             return {"configured": False, "entries": []}
+        worker_filter = worker.strip() or None
         return {
             "configured": True,
-            "entries": read_activity(cfg, limit=limit, include_debug=debug == "1"),
+            "entries": read_activity(
+                cfg,
+                limit=limit,
+                include_debug=debug == "1",
+                worker=worker_filter,
+            ),
         }
 
     @app.get("/api/stats")

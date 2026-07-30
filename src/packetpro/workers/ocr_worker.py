@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import shutil
+import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
@@ -23,6 +24,8 @@ from packetpro.pipeline_control import is_processing_enabled, log_activity, log_
 from packetpro.stats import record_event, start_heartbeat_thread, write_heartbeat
 from packetpro.utils import (
     archive_destination,
+    explain_failure,
+    format_failure_message,
     move_to_failed,
     read_json,
     utc_now,
@@ -31,6 +34,9 @@ from packetpro.utils import (
 
 console = Console()
 PAUSED_LOG_INTERVAL = 60.0
+OCR_SCAN_INTERVAL = 20.0
+# Jobs left in "processing" after a worker crash/restart are reclaimed after this age.
+STALE_PROCESSING_SECONDS = 120.0
 _last_paused_log = 0.0
 _active_backends: list[OcrBackend] = []
 
@@ -47,6 +53,59 @@ def _count_pending_jobs(config: AppConfig) -> int:
         if job.get("status") == "pending":
             count += 1
     return count
+
+
+def reclaim_stale_processing_jobs(
+    config: AppConfig,
+    *,
+    max_age_seconds: float = STALE_PROCESSING_SECONDS,
+    force: bool = False,
+) -> int:
+    """Reset abandoned processing jobs back to pending so the queue can move again."""
+    if not config.transformed.is_dir():
+        return 0
+
+    now = time.time()
+    reclaimed = 0
+    for sidecar_path in config.transformed.glob("*.json"):
+        if sidecar_path.name.startswith(".archive_"):
+            continue
+        try:
+            job = read_json(sidecar_path)
+        except Exception:
+            continue
+        if job.get("status") != "processing":
+            continue
+        try:
+            age = now - sidecar_path.stat().st_mtime
+        except OSError:
+            age = max_age_seconds + 1
+        if not force and age < max_age_seconds:
+            continue
+
+        name = str(job.get("original_name") or sidecar_path.name)
+        page = int(job.get("page_number", 0)) or None
+        backend = job.get("ocr_backend") or "unknown"
+        job["status"] = "pending"
+        job.pop("error", None)
+        try:
+            write_json(sidecar_path, job)
+        except OSError:
+            continue
+        reclaimed += 1
+        log_activity(
+            config,
+            worker="ocr",
+            action="warning",
+            message=(
+                f"Reclaimed stuck OCR job for {name} "
+                f"(was processing on {backend} for {int(age)}s). "
+                "Reset to pending so the queue can continue."
+            ),
+            file=name,
+            page=page,
+        )
+    return reclaimed
 
 
 def _archive_marker_path(transformed_dir: Path, file_hash: str) -> Path:
@@ -255,14 +314,19 @@ def _handle_job_failure(
     job: dict,
     exc: Exception,
 ) -> None:
-    console.print(f"[red]OCR failed for {sidecar_path.name}:[/red] {exc}")
+    name = str(job.get("original_name", sidecar_path.name))
+    page = int(job.get("page_number", 0)) or None
+    message = format_failure_message("OCR failed", file_name=name, error=exc)
+    if page:
+        message = f"{message} (page {page})"
+    console.print(f"[red]OCR failed for {name}:[/red] {exc}")
     log_activity(
         config,
         worker="ocr",
         action="error",
-        message=f"OCR failed for {job.get('original_name', sidecar_path.name)}: {exc}",
-        file=str(job.get("original_name", "")),
-        page=int(job.get("page_number", 0)) or None,
+        message=message,
+        file=name,
+        page=page,
     )
     original_path = Path(job.get("original_path", ""))
     if original_path.exists() and not job.get("in_place"):
@@ -272,10 +336,31 @@ def _handle_job_failure(
     write_json(sidecar_path, job)
 
 
+def _is_retriable_backend_error(exc: BaseException) -> bool:
+    """True when another Ollama/GPU backend might succeed."""
+    text = str(exc).lower()
+    markers = (
+        "500 internal server error",
+        "502",
+        "503",
+        "504",
+        "timeout",
+        "timed out",
+        "connection refused",
+        "connecterror",
+        "connect error",
+        "connection reset",
+        "server disconnected",
+        "temporarily unavailable",
+    )
+    return any(marker in text for marker in markers)
+
+
 def _process_job_safe(
     config: AppConfig,
     sidecar_path: Path,
     backend: OcrBackend,
+    all_backends: list[OcrBackend] | None = None,
 ) -> bool:
     try:
         job = read_json(sidecar_path)
@@ -283,34 +368,90 @@ def _process_job_safe(
         return False
     if job.get("status") != "pending":
         return False
-    try:
-        write_heartbeat(
-            config,
-            "ocr",
-            "processing",
-            file=job.get("original_name", sidecar_path.name),
-        )
-        process_job(
-            config,
-            sidecar_path,
-            backend.config,
-            backend_label=backend.label,
-        )
-        return True
-    except Exception as exc:  # noqa: BLE001
+
+    backends_to_try: list[OcrBackend] = [backend]
+    if all_backends and len(all_backends) > 1:
+        for candidate in all_backends:
+            if candidate.label != backend.label:
+                backends_to_try.append(candidate)
+
+    last_exc: BaseException | None = None
+    for attempt_index, active_backend in enumerate(backends_to_try):
         try:
             job = read_json(sidecar_path)
         except Exception:
             return False
-        _handle_job_failure(config, sidecar_path, job, exc)
-        return False
+        if job.get("status") not in {"pending", "processing"}:
+            return False
+        if attempt_index > 0:
+            # Reset so process_job can claim the job again on the failover backend.
+            job["status"] = "pending"
+            job.pop("error", None)
+            write_json(sidecar_path, job)
+            previous = backends_to_try[attempt_index - 1]
+            log_activity(
+                config,
+                worker="ocr",
+                action="warning",
+                message=(
+                    f"Backend {previous.label} failed for "
+                    f"{job.get('original_name', sidecar_path.name)}; "
+                    f"retrying on {active_backend.label}. "
+                    f"Previous error: {explain_failure(last_exc)}"
+                ),
+                file=str(job.get("original_name", "")),
+                page=int(job.get("page_number", 0)) or None,
+            )
+
+        try:
+            write_heartbeat(
+                config,
+                "ocr",
+                "processing",
+                file=job.get("original_name", sidecar_path.name),
+            )
+            process_job(
+                config,
+                sidecar_path,
+                active_backend.config,
+                backend_label=active_backend.label,
+            )
+            return True
+        except Exception as exc:  # noqa: BLE001
+            last_exc = exc
+            can_failover = (
+                attempt_index + 1 < len(backends_to_try)
+                and _is_retriable_backend_error(exc)
+            )
+            if can_failover:
+                console.print(
+                    f"[yellow]OCR backend {active_backend.label} failed, "
+                    f"trying failover:[/yellow] {exc}"
+                )
+                continue
+            try:
+                job = read_json(sidecar_path)
+            except Exception:
+                return False
+            _handle_job_failure(config, sidecar_path, job, exc)
+            return False
+
+    return False
 
 
 def _collect_pending_jobs(
     config: AppConfig,
     backends: list[OcrBackend],
 ) -> list[tuple[Path, OcrBackend]]:
-    assignments: list[tuple[Path, OcrBackend]] = []
+    """Return pending jobs with preferred backend assignment.
+
+    When multiple backends exist, interleave jobs so dual-GPU batches use both
+    GPUs instead of stacking the first N alphabetically onto one device.
+    """
+    if not backends:
+        return []
+
+    buckets: list[list[tuple[Path, OcrBackend]]] = [[] for _ in backends]
     for sidecar_path in sorted(config.transformed.glob("*.json")):
         if sidecar_path.name.startswith(".archive_"):
             continue
@@ -320,8 +461,25 @@ def _collect_pending_jobs(
             continue
         if job.get("status") != "pending":
             continue
-        backend = backends[backend_index_for_job(str(job["job_id"]), len(backends))]
-        assignments.append((sidecar_path, backend))
+        index = backend_index_for_job(str(job["job_id"]), len(backends))
+        buckets[index].append((sidecar_path, backends[index]))
+
+    if len(backends) == 1:
+        return buckets[0]
+
+    # Round-robin across backend buckets for healthier dual-GPU utilization.
+    assignments: list[tuple[Path, OcrBackend]] = []
+    indexes = [0] * len(backends)
+    while True:
+        added = False
+        for backend_i, bucket in enumerate(buckets):
+            pos = indexes[backend_i]
+            if pos < len(bucket):
+                assignments.append(bucket[pos])
+                indexes[backend_i] = pos + 1
+                added = True
+        if not added:
+            break
     return assignments
 
 
@@ -331,6 +489,19 @@ def _scan_pending(
     *,
     reason: str,
 ) -> None:
+    # Recover jobs abandoned when the worker restarted mid-OCR.
+    reclaimed = reclaim_stale_processing_jobs(
+        config,
+        force=reason in {"startup", "resume"},
+    )
+    if reclaimed:
+        log_activity(
+            config,
+            worker="ocr",
+            action="warning",
+            message=f"Reclaimed {reclaimed} stuck processing job(s) during {reason} scan",
+        )
+
     pending = _count_pending_jobs(config)
     if not is_processing_enabled(config):
         log_debug(
@@ -340,8 +511,17 @@ def _scan_pending(
         )
         return
 
+    if not backends:
+        log_activity(
+            config,
+            worker="ocr",
+            action="error",
+            message=f"OCR scan ({reason}): no OCR backends available; {pending} job(s) waiting",
+        )
+        return
+
     if not pending:
-        if reason != "periodic":
+        if reason not in {"periodic", "watch"}:
             log_debug(
                 config,
                 worker="ocr",
@@ -359,30 +539,58 @@ def _scan_pending(
             f"{', '.join(backend.label for backend in backends)}"
         ),
     )
+    if reason in {"startup", "resume", "periodic"} and pending > 0:
+        log_activity(
+            config,
+            worker="ocr",
+            action="scanning",
+            message=(
+                f"OCR queue scan ({reason}): {pending} pending job(s), "
+                f"backends {', '.join(backend.label for backend in backends)}"
+            ),
+        )
 
     processed = 0
+    # Process only a limited concurrent batch so we don't pin hundreds of futures
+    # and so periodic reclaim/scans can interleave.
+    batch_size = max(2, len(backends) * 4)
+    batch = assignments[:batch_size]
+
     if len(backends) == 1:
-        for sidecar_path, backend in assignments:
+        for sidecar_path, backend in batch:
             if not is_processing_enabled(config):
                 return
-            if _process_job_safe(config, sidecar_path, backend):
+            if _process_job_safe(config, sidecar_path, backend, backends):
                 processed += 1
     else:
         with ThreadPoolExecutor(max_workers=len(backends)) as executor:
             futures = {
-                executor.submit(_process_job_safe, config, sidecar_path, backend): sidecar_path
-                for sidecar_path, backend in assignments
+                executor.submit(
+                    _process_job_safe,
+                    config,
+                    sidecar_path,
+                    backend,
+                    backends,
+                ): sidecar_path
+                for sidecar_path, backend in batch
             }
             for future in as_completed(futures):
                 if not is_processing_enabled(config):
                     break
-                if future.result():
-                    processed += 1
+                try:
+                    if future.result():
+                        processed += 1
+                except Exception as exc:  # noqa: BLE001
+                    console.print(f"[red]OCR worker batch error:[/red] {exc}")
 
+    remaining = _count_pending_jobs(config)
     log_debug(
         config,
         worker="ocr",
-        message=f"OCR scan ({reason}) finished: {processed} job(s) processed",
+        message=(
+            f"OCR scan ({reason}) finished: {processed} job(s) processed, "
+            f"{remaining} still pending"
+        ),
     )
 
 
@@ -399,19 +607,73 @@ def _refresh_backends(config: AppConfig) -> list[OcrBackend]:
         if (
             config.ocr.engine == "ollama"
             and config.ocr.use_both_gpus
-            and len(backends) == 1
+            and len(backends) < 2
         ):
             log_activity(
                 config,
                 worker="ocr",
                 action="warning",
                 message=(
-                    "Dual GPU requested but secondary Ollama is unavailable; "
-                    "using GPU1 only"
+                    "Dual GPU requested but only using backends where the OCR model "
+                    "is already loaded (PacketPro will not load other models). "
+                    f"Active: {labels or 'none'}"
+                ),
+            )
+        if config.ocr.engine == "ollama" and not backends:
+            log_activity(
+                config,
+                worker="ocr",
+                action="warning",
+                message=(
+                    f"No OCR backends ready: model {config.ocr.model} is not loaded "
+                    f"on primary ({config.ocr.ollama_url})"
+                    + (
+                        f" or secondary ({config.ocr.secondary_ollama_url})"
+                        if config.ocr.use_both_gpus
+                        else ""
+                    )
+                    + ". Warm qwen2.5vl:7b before OCR will proceed."
                 ),
             )
     _active_backends = backends
     return backends
+
+
+def _start_ocr_scan_thread(config: AppConfig) -> None:
+    def loop() -> None:
+        nonlocal config
+        while True:
+            time.sleep(OCR_SCAN_INTERVAL)
+            try:
+                try:
+                    config = load_config(config.config_path)
+                except ConfigError:
+                    pass
+                if not is_processing_enabled(config):
+                    continue
+                backends = _refresh_backends(config)
+                pending = _count_pending_jobs(config)
+                if pending <= 0:
+                    reclaim_stale_processing_jobs(config)
+                    continue
+                _scan_pending(config, backends, reason="periodic")
+            except Exception as exc:  # noqa: BLE001
+                console.print(f"[red]OCR periodic scan failed:[/red] {exc}")
+                try:
+                    log_activity(
+                        config,
+                        worker="ocr",
+                        action="error",
+                        message=format_failure_message(
+                            "Periodic OCR scan failed",
+                            error=exc,
+                        ),
+                    )
+                except Exception:  # noqa: BLE001
+                    pass
+
+    thread = threading.Thread(target=loop, name="packetpro-ocr-scan", daemon=True)
+    thread.start()
 
 
 def run_ocr_worker(config: AppConfig) -> None:
@@ -420,17 +682,19 @@ def run_ocr_worker(config: AppConfig) -> None:
     start_heartbeat_thread(config, "ocr")
     control_dir = config.data_root / ".packetpro"
     backends = _refresh_backends(config)
+    reclaimed = reclaim_stale_processing_jobs(config, force=True)
     pending = _count_pending_jobs(config)
     enabled = is_processing_enabled(config)
-    backend_labels = ", ".join(backend.label for backend in backends)
-    log_debug(
+    backend_labels = ", ".join(backend.label for backend in backends) or "none"
+    log_activity(
         config,
         worker="ocr",
+        action="idle",
         message=(
             f"OCR worker started (pid {os.getpid()}): "
             f"watching {config.transformed}, backends {backend_labels}, "
             f"processing {'enabled' if enabled else 'paused'}, "
-            f"{pending} job(s) pending"
+            f"{pending} pending, reclaimed {reclaimed} stuck job(s)"
         ),
     )
     console.print(
@@ -439,6 +703,7 @@ def run_ocr_worker(config: AppConfig) -> None:
     )
 
     _scan_pending(config, backends, reason="startup")
+    _start_ocr_scan_thread(config)
     last_backend_refresh = time.monotonic()
 
     try:

@@ -16,7 +16,7 @@ services:
       - /storage/ollama:/root/.ollama
     environment:
       - OLLAMA_NUM_PARALLEL=1
-      - OLLAMA_MAX_LOADED_MODELS=1
+      - OLLAMA_MAX_LOADED_MODELS=2
       - OLLAMA_KEEP_ALIVE=10m
       - NVIDIA_VISIBLE_DEVICES=0
     deploy:

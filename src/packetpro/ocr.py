@@ -17,7 +17,8 @@ from PIL import Image
 
 from packetpro.config import OcrConfig
 
-MAX_OCR_DIMENSION = 2048
+# Keep images smaller so vision token counts fit comfortably in num_ctx.
+MAX_OCR_DIMENSION = 1536
 OLLAMA_CHECK_TIMEOUT = 5.0
 
 _paddle_lock = threading.Lock()
@@ -42,6 +43,7 @@ def _backend_config(ocr: OcrConfig, *, primary: bool) -> OcrConfig:
         timeout_seconds=ocr.timeout_seconds,
         max_retries=ocr.max_retries,
         num_ctx=ocr.num_ctx,
+        num_predict=ocr.num_predict,
         use_both_gpus=ocr.use_both_gpus,
         secondary_ollama_url=ocr.secondary_ollama_url,
         secondary_model=ocr.secondary_model,
@@ -161,6 +163,15 @@ def check_paddleocr_backend(ocr: OcrConfig) -> dict[str, Any]:
     }
 
 
+def _model_name_matches(candidate: str, wanted: str) -> bool:
+    """True if Ollama name matches wanted model (exact or tag-prefix)."""
+    name = (candidate or "").strip()
+    model = (wanted or "").strip()
+    if not name or not model:
+        return False
+    return name == model or name.startswith(f"{model}:") or model.startswith(f"{name}:")
+
+
 def list_ollama_models(
     ollama_url: str,
     *,
@@ -196,12 +207,68 @@ def list_ollama_models(
     }
 
 
+def list_loaded_ollama_models(
+    ollama_url: str,
+    *,
+    timeout: float = OLLAMA_CHECK_TIMEOUT,
+) -> dict[str, Any]:
+    """Models currently resident in VRAM (/api/ps), not merely downloaded."""
+    base = ollama_url.rstrip("/")
+    try:
+        with httpx.Client(timeout=timeout) as client:
+            response = client.get(f"{base}/api/ps")
+            response.raise_for_status()
+            data = response.json()
+    except Exception as exc:  # noqa: BLE001
+        return {
+            "ok": False,
+            "message": f"Cannot query loaded models at {base}",
+            "error": str(exc),
+            "url": base,
+            "models": [],
+        }
+
+    models = sorted(
+        {
+            str(entry.get("name", "")).strip()
+            for entry in data.get("models", [])
+            if isinstance(entry, dict) and entry.get("name")
+        }
+    )
+    return {
+        "ok": True,
+        "message": f"{len(models)} model(s) loaded",
+        "url": base,
+        "models": models,
+    }
+
+
+def is_ollama_model_loaded(
+    ollama_url: str,
+    model: str,
+    *,
+    timeout: float = OLLAMA_CHECK_TIMEOUT,
+) -> bool:
+    """True only if the model is already loaded (will not force a load)."""
+    status = list_loaded_ollama_models(ollama_url, timeout=timeout)
+    if not status.get("ok"):
+        return False
+    return any(_model_name_matches(name, model) for name in status.get("models") or [])
+
+
 def check_ollama_backend(
     ollama_url: str,
     model: str,
     *,
     timeout: float = OLLAMA_CHECK_TIMEOUT,
+    require_loaded: bool = True,
 ) -> dict[str, Any]:
+    """Check Ollama reachability and model status.
+
+    When ``require_loaded`` is True (default), the backend is only "ok" if the
+    model is already in VRAM via /api/ps — PacketPro will not trigger a load of
+    a different/unloaded model onto the GPU.
+    """
     base = ollama_url.rstrip("/")
     try:
         with httpx.Client(timeout=timeout) as client:
@@ -215,6 +282,7 @@ def check_ollama_backend(
             "error": str(exc),
             "url": base,
             "model": model,
+            "loaded": False,
         }
 
     model_names = [
@@ -222,28 +290,48 @@ def check_ollama_backend(
         for entry in data.get("models", [])
         if isinstance(entry, dict)
     ]
-    available = any(
-        name == model or name.startswith(f"{model}:")
-        for name in model_names
-    )
+    available = any(_model_name_matches(name, model) for name in model_names)
     if not available:
         return {
             "ok": False,
-            "message": f"Model {model} is not available",
+            "message": f"Model {model} is not installed",
             "url": base,
             "model": model,
             "models": sorted(model_names),
+            "loaded": False,
+        }
+
+    loaded_status = list_loaded_ollama_models(base, timeout=timeout)
+    loaded_names = list(loaded_status.get("models") or []) if loaded_status.get("ok") else []
+    loaded = any(_model_name_matches(name, model) for name in loaded_names)
+
+    if require_loaded and not loaded:
+        return {
+            "ok": False,
+            "message": (
+                f"Model {model} is installed but not currently loaded "
+                f"(loaded: {', '.join(loaded_names) or 'none'}). "
+                "PacketPro will not load other models."
+            ),
+            "url": base,
+            "model": model,
+            "models": sorted(model_names),
+            "loaded_models": loaded_names,
+            "loaded": False,
         }
 
     return {
         "ok": True,
-        "message": "Ollama is ready",
+        "message": "Ollama is ready" + (" (model loaded)" if loaded else ""),
         "url": base,
         "model": model,
+        "loaded": loaded,
+        "loaded_models": loaded_names,
     }
 
 
 def resolve_ocr_backends(ocr: OcrConfig) -> list[OcrBackend]:
+    """Return OCR backends that are ready without loading new models."""
     if _uses_paddleocr(ocr):
         status = check_paddleocr_backend(ocr)
         if not status["ok"]:
@@ -251,19 +339,27 @@ def resolve_ocr_backends(ocr: OcrConfig) -> list[OcrBackend]:
         device_label = check_paddleocr_backend(ocr).get("device_label", "PaddleOCR")
         return [OcrBackend(label=str(device_label), config=ocr)]
 
-    primary = OcrBackend(label="GPU1", config=_backend_config(ocr, primary=True))
-    if not ocr.use_both_gpus:
-        return [primary]
-
-    secondary_cfg = _backend_config(ocr, primary=False)
-    secondary_status = check_ollama_backend(
-        secondary_cfg.ollama_url,
-        secondary_cfg.model,
+    backends: list[OcrBackend] = []
+    primary_cfg = _backend_config(ocr, primary=True)
+    primary_status = check_ollama_backend(
+        primary_cfg.ollama_url,
+        primary_cfg.model,
+        require_loaded=True,
     )
-    if secondary_status["ok"]:
-        return [primary, OcrBackend(label="GPU0", config=secondary_cfg)]
+    if primary_status["ok"]:
+        backends.append(OcrBackend(label="GPU1", config=primary_cfg))
 
-    return [primary]
+    if ocr.use_both_gpus:
+        secondary_cfg = _backend_config(ocr, primary=False)
+        secondary_status = check_ollama_backend(
+            secondary_cfg.ollama_url,
+            secondary_cfg.model,
+            require_loaded=True,
+        )
+        if secondary_status["ok"]:
+            backends.append(OcrBackend(label="GPU0", config=secondary_cfg))
+
+    return backends
 
 
 def backend_index_for_job(job_id: str, backend_count: int) -> int:
@@ -321,6 +417,22 @@ def _encode_image(path: Path) -> str:
 
 
 def _extract_text_ollama(image_path: Path, config: OcrConfig) -> str:
+    # Never trigger Ollama to load a different model into VRAM.
+    if not is_ollama_model_loaded(config.ollama_url, config.model):
+        loaded = list_loaded_ollama_models(config.ollama_url)
+        names = ", ".join(loaded.get("models") or []) or "none"
+        raise RuntimeError(
+            f"OCR model {config.model} is not loaded at {config.ollama_url} "
+            f"(currently loaded: {names}). "
+            "PacketPro will not load other models — warm the vision model first."
+        )
+
+    options: dict[str, Any] = {
+        "num_ctx": max(512, int(config.num_ctx)),
+        # Prevent multi-minute runaway completions that stall the whole OCR queue.
+        "num_predict": max(64, int(config.num_predict)),
+        "temperature": 0.0,
+    }
     payload = {
         "model": config.model,
         "messages": [
@@ -331,14 +443,23 @@ def _extract_text_ollama(image_path: Path, config: OcrConfig) -> str:
             }
         ],
         "stream": False,
-        "options": {"num_ctx": config.num_ctx},
+        # Keep the already-resident model warm; do not unload after OCR.
+        "keep_alive": -1,
+        "options": options,
     }
     url = f"{config.ollama_url.rstrip('/')}/api/chat"
     last_error: Exception | None = None
+    # Connect/read timeouts: fail faster so dual-GPU failover can kick in.
+    timeout = httpx.Timeout(
+        connect=15.0,
+        read=float(config.timeout_seconds),
+        write=30.0,
+        pool=15.0,
+    )
 
     for attempt in range(config.max_retries):
         try:
-            with httpx.Client(timeout=config.timeout_seconds) as client:
+            with httpx.Client(timeout=timeout) as client:
                 response = client.post(url, json=payload)
                 response.raise_for_status()
                 data = response.json()

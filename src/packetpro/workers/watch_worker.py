@@ -25,6 +25,7 @@ from packetpro.stats import (
 from packetpro.utils import (
     ensure_stable_file,
     file_settling_unnecessary,
+    format_failure_message,
     utc_now,
     write_json,
 )
@@ -567,7 +568,11 @@ def _scan_watch_folder_locked(
                 config,
                 worker="watch",
                 action="error",
-                message=f"Watch processing failed for {path.name}: {exc}",
+                message=format_failure_message(
+                    "Watch processing failed",
+                    file_name=path.name,
+                    error=exc,
+                ),
                 file=path.name,
             )
 
@@ -616,7 +621,7 @@ def _start_scan_request_thread(
                     config,
                     worker="watch",
                     action="error",
-                    message=f"Manual scan failed: {exc}",
+                    message=format_failure_message("Manual scan failed", error=exc),
                 )
 
     thread = threading.Thread(
@@ -641,7 +646,7 @@ def _start_scan_thread(config: AppConfig, watch_root: Path, state: WatchState) -
                 log_debug(
                     config,
                     worker="watch",
-                    message=f"Periodic scan failed: {exc}",
+                    message=format_failure_message("Periodic scan failed", error=exc),
                 )
 
     thread = threading.Thread(target=loop, name="packetpro-watch-scan", daemon=True)
@@ -757,7 +762,11 @@ def run_watch_worker(config: AppConfig) -> None:
                             config,
                             worker="watch",
                             action="error",
-                            message=f"Watch processing failed for {path.name}: {exc}",
+                            message=format_failure_message(
+                                "Watch processing failed",
+                                file_name=path.name,
+                                error=exc,
+                            ),
                             file=path.name,
                         )
                 _refresh_watch_queue_stats(config, state)

@@ -120,9 +120,107 @@ def read_json(path: Path) -> dict[str, Any]:
         return json.load(fh)
 
 
+def explain_failure(error: str | BaseException | None) -> str:
+    """Turn a raw exception/message into a short human-readable failure reason."""
+    if error is None:
+        return "Unknown failure (no error details recorded)."
+    raw = str(error).strip() or type(error).__name__
+    lower = raw.lower()
+
+    if "duplicate file" in lower or "already processed" in lower or "already indexed" in lower:
+        return (
+            "Duplicate file — already processed or already indexed. "
+            "Delete the existing document first if you need a fresh OCR pass."
+        )
+    if "unique constraint failed" in lower and "job_id" in lower:
+        return (
+            "Already indexed under this job id (database unique constraint). "
+            "This page is already in the search index; reprocessing will fail again "
+            "unless the existing document is deleted."
+        )
+    if "unique constraint" in lower:
+        return f"Database unique constraint conflict: {raw}"
+    if "empty ocr text" in lower or "returned empty" in lower:
+        return (
+            "OCR returned no text — the image may be blank, mostly decorative, "
+            "too low quality, or the model could not read it."
+        )
+    if "unsupported gpu architecture" in lower:
+        return (
+            "PaddleOCR GPU architecture is not supported on this machine. "
+            "Switch OCR engine to Ollama or use CPU PaddleOCR."
+        )
+    if "connection refused" in lower or "connecterror" in lower or "connect error" in lower:
+        return (
+            "Could not reach the OCR backend (connection refused). "
+            "Check that Ollama/PaddleOCR is running."
+        )
+    if "timed out" in lower or "timeout" in lower:
+        return "OCR request timed out — the model may be overloaded or stuck."
+    if "500 internal server error" in lower:
+        return (
+            "OCR backend returned HTTP 500 (server crash/overload). "
+            "Check Ollama logs and GPU memory, then reprocess."
+        )
+    if "404" in lower and ("model" in lower or "not found" in lower):
+        return "OCR model not found on the backend — pull/install the configured model."
+    if "enhanced image missing" in lower:
+        return "Enhanced image was missing when OCR started (job files may have been cleaned up)."
+    if "no such file or directory" in lower and (
+        "heartbeat" in lower or "activity.jsonl" in lower or ".packetpro" in lower
+    ):
+        return (
+            "Transient status-file write race while updating heartbeats/activity log. "
+            "Usually safe to reprocess."
+        )
+    if "no such file or directory" in lower:
+        return f"Missing file or path: {raw}"
+    if "permission denied" in lower:
+        return f"Permission denied while reading or writing a file: {raw}"
+    if "unstable file" in lower:
+        return "File never finished copying (size kept changing); skipped as unstable."
+    if "paddleocr" in lower and "failed after" in lower:
+        return f"PaddleOCR failed after retries: {raw}"
+    if "ocr failed after" in lower:
+        return f"OCR failed after retries: {raw}"
+    return raw
+
+
+def format_failure_message(
+    context: str,
+    *,
+    file_name: str | None = None,
+    error: str | BaseException | None = None,
+) -> str:
+    """Build an activity-log message with a clear failure reason."""
+    reason = explain_failure(error)
+    raw = str(error).strip() if error is not None else ""
+    subject = f"{context} for {file_name}" if file_name else context
+    if raw and raw != reason and raw.lower() not in reason.lower():
+        return f"{subject}: {reason} — technical detail: {raw}"
+    return f"{subject}: {reason}"
+
+
+def read_error_sidecar(path: Path) -> str | None:
+    sidecar = path.with_suffix(path.suffix + ".error.txt")
+    if not sidecar.is_file():
+        return None
+    try:
+        text = sidecar.read_text(encoding="utf-8").strip()
+    except OSError:
+        return None
+    return text or None
+
+
 def write_error_sidecar(path: Path, error: str) -> None:
     sidecar = path.with_suffix(path.suffix + ".error.txt")
-    sidecar.write_text(error, encoding="utf-8")
+    reason = explain_failure(error)
+    raw = str(error).strip()
+    if raw and raw != reason:
+        body = f"{reason}\n\nTechnical detail:\n{raw}\n"
+    else:
+        body = f"{reason}\n"
+    sidecar.write_text(body, encoding="utf-8")
 
 
 def move_to_failed(source: Path, failed_dir: Path, error: str) -> Path:

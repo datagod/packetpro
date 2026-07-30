@@ -21,6 +21,7 @@ from packetpro.utils import (
     file_content_hash,
     file_identity_hash,
     file_settling_unnecessary,
+    format_failure_message,
     move_to_failed,
     utc_now,
     write_json,
@@ -355,7 +356,11 @@ def _scan_inbox(config: AppConfig, *, reason: str) -> None:
                 config,
                 worker="enhance",
                 action="error",
-                message=f"Enhancement failed for {path.name}: {exc}",
+                message=format_failure_message(
+                    "Enhancement failed",
+                    file_name=path.name,
+                    error=exc,
+                ),
                 file=path.name,
             )
             if not is_watch_source(config, path):
@@ -456,7 +461,11 @@ def run_enhance_worker(config: AppConfig) -> None:
                         config,
                         worker="enhance",
                         action="error",
-                        message=f"Enhancement failed for {path.name}: {exc}",
+                        message=format_failure_message(
+                            "Enhancement failed",
+                            file_name=path.name,
+                            error=exc,
+                        ),
                         file=path.name,
                     )
                     if not is_watch_source(config, path):
